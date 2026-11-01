@@ -52,8 +52,8 @@ export function initialState(questions: Question[] = DEFAULT_QUESTIONS): GameSta
   return {
     version: 1,
     questions: structuredClone(questions),
-    currentId: questions[0].id,
-    usedIds: [questions[0].id],
+    currentId: questions[0]!.id,
+    usedIds: [questions[0]!.id],
     tiles: hidden(),
     bank: 0,
     scores: { A: 0, B: 0 },
@@ -86,7 +86,7 @@ export type Action =
   | { type: "adjustScore"; team: Team; delta: number };
 
 export const currentQuestion = (s: GameState) =>
-  s.questions.find((x) => x.id === s.currentId) ?? s.questions[0];
+  (s.questions.find((x) => x.id === s.currentId) ?? s.questions[0])!;
 
 function awardTo(s: GameState, team: Team, reason: string): GameState {
   const points = s.bank;
@@ -146,8 +146,8 @@ export function reducer(s: GameState, a: Action): GameState {
         const pool = unused.length ? unused : s.questions.filter((x) => x.id !== s.currentId);
         if (!pool.length) return s;
         id = a.random
-          ? pool[Math.floor((a.rand ?? Math.random()) * pool.length) % pool.length].id
-          : pool[0].id;
+          ? pool[Math.floor((a.rand ?? Math.random()) * pool.length) % pool.length]!.id
+          : pool[0]!.id;
       }
       if (!s.questions.some((x) => x.id === id)) return s;
       return {
