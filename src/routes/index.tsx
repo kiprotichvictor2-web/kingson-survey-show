@@ -4,7 +4,6 @@ import {
   currentQuestion,
   initialState,
   loadState,
-  other,
   reducer,
   STORAGE_KEY,
   winner,
@@ -75,7 +74,7 @@ function Game() {
       else if (k === "a" || k === "b") actRef.current({ type: "setActive", team: k.toUpperCase() as Team });
       else if (k === " " || k === "enter") {
         e.preventDefault();
-        setSRef.current((st) => { actRef.current({ type: "award", team: st.active }); return st; });
+        actRef.current({ type: "award", team: stateRef.current.active });
       } else if (k === "s") setStageOnly((v) => !v);
       else if (k === "escape") { setStageOnly(false); setHelp(false); setEditing(false); }
       else if (k === "h" || k === "?") setHelp((v) => !v);
@@ -87,7 +86,6 @@ function Game() {
   // helper to read latest state inside the key handler
   const stateRef = useRef(s);
   stateRef.current = s;
-  const setSRef = useRef((fn: (st: GameState) => GameState) => fn(stateRef.current));
 
   const q = currentQuestion(s);
 
@@ -431,4 +429,3 @@ function EditDialog({ q, onClose, onSave }: { q: Question; onClose: () => void; 
   );
 }
 
-export { other };
