@@ -200,7 +200,7 @@ function Stage({ s, q, strikeFlash, onReveal }: { s: GameState; q: Question; str
             </div>
             {/* strikes */}
             <div className="mt-[2cqh] flex h-[9cqh] items-center justify-center gap-[1.5cqw]">
-              {[0, 1, 2].map((i) => (
+              {!s.lastAward && [0, 1, 2].map((i) => (
                 <div key={i} className={`flex aspect-square h-full items-center justify-center rounded-lg border-2 font-display ${i < s.strikes ? "pop border-destructive bg-destructive/20 text-destructive" : "border-border text-border"}`} style={{ fontSize: "7cqh", lineHeight: 1 }}>✕</div>
               ))}
             </div>
@@ -209,7 +209,7 @@ function Stage({ s, q, strikeFlash, onReveal }: { s: GameState; q: Question; str
         </div>
 
         {s.lastAward && !s.gameOver && (
-          <div key={s.round + s.lastAward.reason} className="pop absolute bottom-[3cqh] left-1/2 -translate-x-1/2 rounded-full gold-frame bg-background/90 px-[3cqw] py-[1cqh] font-display" style={{ fontSize: "3cqh" }}>
+          <div key={s.round + s.lastAward.reason} className="pop absolute bottom-[3.5cqh] left-1/2 -translate-x-1/2 rounded-full gold-frame bg-background/90 px-[3cqw] py-[1cqh] font-display" style={{ fontSize: "3cqh" }}>
             <span className="text-muted-foreground">{s.lastAward.reason.toUpperCase()} · </span>
             <span className="gold-text">+{s.lastAward.points} {s.teamNames[s.lastAward.team]}</span>
           </div>
