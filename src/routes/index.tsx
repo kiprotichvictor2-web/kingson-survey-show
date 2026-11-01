@@ -360,13 +360,94 @@ function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch }: {
         </div>
       </div>
 
-      <details className="mt-3 text-sm text-muted-foreground">
-        <summary className="cursor-pointer">Host cheat sheet — answers for this question</summary>
-        <ol className="mt-2 grid grid-cols-2 gap-1 md:grid-cols-3">
-          {q.answers.map((a, i) => <li key={i}>{i + 1}. {a.text} — <b className="text-gold">{a.points}</b> {s.tiles[i] !== "hidden" ? "✓" : ""}</li>)}
-        </ol>
-      </details>
+      <AnswerKey s={s} q={q} act={act} />
     </section>
+  );
+}
+
+/* ---------------- HOST ANSWER KEY (private) ---------------- */
+
+const normText = (t: string) => t.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+const isSubseq = (needle: string, hay: string) => {
+  let i = 0;
+  for (const c of hay) if (c === needle[i]) i++;
+  return i >= needle.length;
+};
+function answerMatches(query: string, answer: string): boolean {
+  const q = normText(query);
+  const a = normText(answer);
+  if (!q) return false;
+  if (a.includes(q) || q.includes(a)) return true;
+  const qw = q.split(" ");
+  const aw = a.split(" ");
+  if (qw.some((w) => w.length > 2 && aw.some((x) => x.includes(w) || w.includes(x)))) return true;
+  const qc = q.replace(/ /g, "");
+  const ac = a.replace(/ /g, "");
+  return qc.length >= 3 && isSubseq(qc, ac);
+}
+
+function AnswerKey({ s, q, act }: { s: GameState; q: Question; act: (a: Action) => void }) {
+  const [guess, setGuess] = useState("");
+  const checking = normText(guess).length > 0;
+  const hits = q.answers.map((a) => answerMatches(guess, a.text));
+  const hitCount = hits.filter(Boolean).length;
+  return (
+    <div className="mt-4 rounded-xl border-2 border-dashed border-destructive/60 bg-muted/60 p-3">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-display text-lg tracking-wide text-gold">
+          HOST ANSWER KEY <span className="ml-1 rounded bg-destructive px-2 py-0.5 font-sans text-[10px] font-bold uppercase tracking-widest text-destructive-foreground">Private</span>
+        </h3>
+        <span className="text-xs text-muted-foreground">Hidden in Stage view — viewers never see this.</span>
+      </div>
+
+      <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-muted-foreground" htmlFor="viewer-guess">
+        Check a viewer's answer
+      </label>
+      <input
+        id="viewer-guess"
+        type="text"
+        value={guess}
+        onChange={(e) => setGuess(e.target.value)}
+        placeholder="Type or paste what a viewer said…"
+        className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+      />
+      {checking && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          {hitCount > 0 ? `${hitCount} likely match${hitCount > 1 ? "es" : ""} highlighted below — tap one to reveal it.` : "No close match on the board."}
+        </p>
+      )}
+
+      <ol className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3">
+        {q.answers.map((a, i) => {
+          const revealed = s.tiles[i] !== "hidden";
+          const hit = checking && hits[i];
+          return (
+            <li key={i}>
+              <button
+                disabled={revealed}
+                onClick={() => act({ type: "reveal", index: i })}
+                className={`flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left text-sm transition ${
+                  hit
+                    ? "border-gold bg-primary/15 ring-2 ring-gold"
+                    : checking
+                      ? "border-border opacity-45"
+                      : "border-border bg-card hover:bg-secondary/40"
+                } disabled:opacity-40`}
+              >
+                <span className="font-display text-gold">{i + 1}</span>
+                <span className="flex-1 truncate font-semibold">{a.text}</span>
+                <span className="font-display text-gold">{a.points}</span>
+                {revealed && <span className="text-xs text-muted-foreground">✓ shown</span>}
+                {hit && !revealed && <span className="rounded bg-gold px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary-foreground">match?</span>}
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Matching is approximate — similar wording and synonyms need your judgment. Checking never awards points; you reveal the official tile yourself.
+      </p>
+    </div>
   );
 }
 
