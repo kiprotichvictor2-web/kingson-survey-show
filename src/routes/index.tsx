@@ -997,20 +997,23 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResu
         </div>
 
         {/* body */}
-        <div className="mt-[2.5cqh] grid flex-1 grid-cols-[1fr_3.2fr_1fr] gap-[2cqw] min-h-0">
-          <Podium s={s} team="A" />
-          <div className="flex min-h-0 flex-col">
+        <div className="mt-[2cqh] flex flex-1 min-h-0 flex-col gap-[1.2cqh]">
+          <div className="grid grid-cols-2 gap-[1.5cqw]">
+            <Podium s={s} team="A" />
+            <Podium s={s} team="B" />
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col">
             {roundMode === "bonus" ? (
               <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border-2 border-gold/60 bg-background/55 p-[1.5cqw] text-center">
                 <div className="font-display text-gold" style={{fontSize:"3.5cqh"}}>BONUS QUESTION {bonus.index + 1} / 5</div>
                 <div className="mt-[1cqh] font-display text-electric" style={{fontSize:"2.5cqh"}}>UP TO 200 POINTS AVAILABLE</div>
-                <div className="mt-[2cqh] grid w-full grid-cols-5 gap-[1cqw]">
+                <div className="mt-[1.2cqh] grid w-full flex-1 min-h-0 grid-cols-1 grid-rows-5 gap-[.7cqh]">
                   {Array.from({ length: 5 }, (_, i) => {
                     const response = bonus.responses?.[i] ?? "";
-                    return <div key={i} className="flex min-h-0 flex-col items-center justify-center rounded-xl border-2 border-gold/50 bg-slate-950/65 px-[.6cqw] py-[1.2cqh]">
-                      <span className="font-display text-gold" style={{fontSize:"2.2cqh"}}>{i + 1}</span>
-                      <span className="mt-[.5cqh] w-full truncate font-semibold text-white" style={{fontSize:"2.2cqh"}}>{response || "＿＿＿＿"}</span>
-                      <span className="mt-[.3cqh] font-display text-gold" style={{fontSize:"2cqh"}}>{response ? "+" + (bonus.questions[i].answers.find(a => a.text === response)?.points ?? 0) : "—"}</span>
+                    return <div key={i} className="flex min-h-0 items-center gap-[2cqw] rounded-xl border-2 border-gold/50 bg-slate-950/75 px-[2cqw] py-[.45cqh]">
+                      <span className="flex h-[5.5cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-display font-black text-gold" style={{fontSize:"3.2cqh"}}>{i + 1}</span>
+                      <span className="min-w-0 flex-1 break-words text-left font-bold text-white" style={{fontSize:"3.1cqh",lineHeight:1.12}}>{response || "WAITING FOR ANSWER"}</span>
+                      <span className="shrink-0 rounded-lg bg-amber-400/15 px-[2cqw] py-[.5cqh] font-display font-black text-gold" style={{fontSize:"3.2cqh"}}>{response ? "+" + (bonus.questions[i].answers.find(a => a.text === response)?.points ?? 0) : "—"}</span>
                     </div>;
                   })}
                 </div>
@@ -1021,7 +1024,7 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResu
               <span className="font-display text-muted-foreground" style={{ fontSize: "2.4cqh" }}>ROUND BANK</span>
               <span key={s.bank} className="pop font-display gold-text" style={{ fontSize: "5cqh", lineHeight: 1 }}>{s.bank}</span>
             </div>
-            <div className="grid flex-1 grid-cols-2 grid-rows-3 gap-[1.2cqw] min-h-0" style={{ perspective: 800 }}>
+            <div className="grid flex-1 min-h-0 grid-cols-1 grid-rows-6 gap-[.7cqh]" style={{ perspective: 800 }}>
               {q.answers.map((ans, i) => {
                 const t = s.tiles[i];
                 return (
@@ -1029,15 +1032,16 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResu
                     key={`${q.id}-${i}-${t}`}
                     onClick={() => onReveal(i)}
                     disabled={t !== "hidden"}
-                    className={`ks-tile flex items-center rounded-xl px-[1.5cqw] text-left ${t === "hidden" ? "tile-closed cursor-pointer hover:brightness-125" : t === "scored" ? "tile-open" : "tile-shown"}`}
+                    className={`ks-tile flex min-h-0 items-center rounded-xl px-[2.2cqw] py-[.35cqh] text-left ${t === "hidden" ? "tile-closed cursor-pointer hover:brightness-125" : t === "scored" ? "tile-open" : "tile-shown"}`}
                     aria-label={t === "hidden" ? `Reveal answer ${i + 1}` : `${ans.text} ${ans.points}`}
                   >
                     {t === "hidden" ? (
                       <span className="mx-auto flex aspect-square h-[70%] items-center justify-center rounded-full bg-background/70 font-display text-gold" style={{ fontSize: "5cqh", border: "2px solid var(--gold)" }}>{i + 1}</span>
                     ) : (
                       <>
-                        <span className="flex-1 truncate font-display uppercase" style={{ fontSize: "3.6cqh" }}>{ans.text}</span>
-                        <span className={`ml-[1cqw] flex h-[72%] aspect-square items-center justify-center rounded-lg font-display ${t === "scored" ? "bg-primary-foreground text-primary" : "bg-muted"}`} style={{ fontSize: "3.8cqh" }}>{ans.points}</span>
+                        <span className="mr-[2cqw] flex h-[5.5cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-display font-black text-gold" style={{ fontSize: "3.2cqh" }}>{i + 1}</span>
+                        <span className="min-w-0 flex-1 break-words font-display font-bold uppercase text-white" style={{ fontSize: "3.4cqh", lineHeight: 1.08 }}>{ans.text}</span>
+                        <span className={`ml-[2cqw] flex h-[5.5cqh] min-w-[5.5cqh] shrink-0 items-center justify-center rounded-lg px-[1cqw] font-display font-black ${t === "scored" ? "bg-primary-foreground text-primary" : "bg-slate-950/70 text-gold"}`} style={{ fontSize: "3.5cqh" }}>{ans.points}</span>
                       </>
                     )}
                   </button>
@@ -1045,7 +1049,7 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResu
               })}
             </div>
             {/* strikes */}
-            <div className="mt-[2cqh] flex h-[9cqh] items-center justify-center gap-[1.5cqw]">
+            <div className="mt-[.8cqh] flex h-[5.5cqh] shrink-0 items-center justify-center gap-[1.5cqw]">
               {!s.lastAward && [0, 1, 2].map((i) => (
                 <div key={i} className={`flex aspect-square h-full items-center justify-center rounded-lg border-2 font-display ${i < s.strikes ? "pop border-destructive bg-destructive/20 text-destructive" : "border-border text-border"}`} style={{ fontSize: "7cqh", lineHeight: 1 }}>✕</div>
               ))}
@@ -1113,10 +1117,10 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResu
 function Podium({ s, team }: { s: GameState; team: Team }) {
   const active = s.active === team && !s.gameOver;
   return (
-    <div className={`ks-podium flex flex-col items-center justify-center rounded-2xl border-2 ${active ? "ks-podium-active glow-active border-electric" : "border-border opacity-80"}`}>
-      <div className="font-display text-center uppercase tracking-wide" style={{ fontSize: "3.4cqh" }}>{s.teamNames[team]}</div>
-      <div key={s.scores[team]} className="pop font-display gold-text" style={{ fontSize: "12cqh", lineHeight: 1.1 }}>{s.scores[team]}</div>
-      <div className={`mt-[1cqh] rounded-full px-[1cqw] font-display ${active ? "bg-electric text-accent-foreground" : "text-transparent"}`} style={{ fontSize: "2.2cqh" }}>
+    <div className={`ks-podium flex min-h-0 flex-row items-center justify-center gap-[2cqw] rounded-xl border-2 px-[2cqw] py-[.5cqh] ${active ? "ks-podium-active glow-active border-electric" : "border-border opacity-80"}`}>
+      <div className="font-display text-center uppercase tracking-wide" style={{ fontSize: "2.5cqh" }}>{s.teamNames[team]}</div>
+      <div key={s.scores[team]} className="pop font-display gold-text" style={{ fontSize: "5.5cqh", lineHeight: 1 }}>{s.scores[team]}</div>
+      <div className={`rounded-full px-[1cqw] font-display ${active ? "bg-electric text-accent-foreground" : "text-transparent"}`} style={{ fontSize: "1.8cqh" }}>
         {s.phase === "steal" && active ? "STEALING" : "PLAYING"}
       </div>
     </div>
