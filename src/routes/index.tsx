@@ -53,7 +53,7 @@ const BONUS_DEFAULTS: BonusQuestion[] = [
   bonusQuestion("What is something people do when they win a prize?", ["Celebrate","Thank people","Take photos","Tell family","Share online"]),
   bonusQuestion("Name something you would find backstage at a concert.", ["Microphones","Musical instruments","Speakers","Dressing room","Stage crew"]),
   bonusQuestion("What might make someone cancel a party?", ["Bad weather","Illness","Not enough money","Venue problem","Few guests"]),
-  bonusQuestion("Name something people collect as a hobby.", ["Coins","Stamps","Shoes","模型 or figurines","Sports cards"]),
+  bonusQuestion("Name something people collect as a hobby.", ["Coins","Stamps","Shoes","Action figures","Sports cards"]),
   bonusQuestion("What is something you might see in a beauty salon?", ["Hair dryers","Mirrors","Chairs","Nail polish","Hair products"]),
   bonusQuestion("Name something people do before taking a group photo.", ["Smile","Arrange themselves","Fix their hair","Choose a pose","Check the camera"]),
   bonusQuestion("What might a person do after receiving a love message?", ["Smile","Reply quickly","Read it again","Show a friend","Feel shy"]),
