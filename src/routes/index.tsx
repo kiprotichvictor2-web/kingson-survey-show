@@ -49,7 +49,7 @@ const BONUS_DEFAULTS: BonusQuestion[] = [
   { prompt: "Name something that can make a person famous.", answers: [{text:"Music or singing",points:64},{text:"Acting",points:51},{text:"Sports talent",points:37},{text:"Social media videos",points:27},{text:" inventing something",points:21}] },
   { prompt: "What is something students worry about before an exam?", answers: [{text:"Forgetting what they studied",points:64},{text:"Failing the exam",points:51},{text:"Running out of time",points:37},{text:"Difficult questions",points:27},{text:"Arriving late",points:21}] },
 ];
-type BonusState = { questions: BonusQuestion[]; index: number; accepted: string[]; total: number; responses: string[] };
+type BonusState = { questions: BonusQuestion[]; index: number; accepted: string[]; total: number; responses: string[]; correctCount: number };
 const BONUS_STORAGE_KEY = "kingson-survey-show-bonus-v1";
 const ROUND_QUESTIONS_KEY = "kingson-survey-show-round-questions-v1";
 const RESULT_KEY = "kingson-survey-show-round-result-v1";
@@ -67,7 +67,7 @@ function Game() {
   const [timer, setTimer] = useState<TimerState>({ duration: 60, remaining: 60, running: false, endsAt: null });
   const [roundMode, setRoundMode] = useState<RoundMode>("classic");
   const [roundQuestions, setRoundQuestions] = useState<RoundQuestions | null>(null);
-  const [bonus, setBonus] = useState<BonusState>({ questions: BONUS_DEFAULTS, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""] });
+  const [bonus, setBonus] = useState<BonusState>({ questions: BONUS_DEFAULTS, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0 });
   const [bonusGuess, setBonusGuess] = useState("");
   const [bonusFeedback, setBonusFeedback] = useState("");
   const [showCountdown, setShowCountdown] = useState<{ remaining: number; target: RoundMode } | null>(null);
@@ -108,7 +108,7 @@ function Game() {
     try { const savedTimer = localStorage.getItem(TIMER_KEY); if (savedTimer) setTimer(JSON.parse(savedTimer) as TimerState); } catch { /* Keep defaults. */ }
     try { const savedRound = localStorage.getItem(ROUND_KEY); if (savedRound) setRoundMode(savedRound as RoundMode); } catch { /* Keep default. */ }
     try { const savedResult = localStorage.getItem(RESULT_KEY); if (savedResult) setRoundResult(JSON.parse(savedResult) as RoundResult); } catch { /* Keep default. */ }
-    try { const savedBonus = localStorage.getItem(BONUS_STORAGE_KEY); if (savedBonus) { const parsed = JSON.parse(savedBonus) as BonusState; const migratedQuestions = Array.isArray(parsed.questions) ? parsed.questions.map((question, qi) => ({ ...question, answers: (question.answers as unknown[]).map((answer, ai) => typeof answer === "string" ? { text: answer, points: [64,51,37,27,21][ai] ?? 21 } : answer as BonusAnswer) })) : BONUS_DEFAULTS; setBonus({ ...parsed, questions: migratedQuestions, responses: Array.isArray(parsed.responses) ? parsed.responses : ["", "", "", "", ""] }); } } catch { /* Keep defaults. */ }
+    try { const savedBonus = localStorage.getItem(BONUS_STORAGE_KEY); if (savedBonus) { const parsed = JSON.parse(savedBonus) as BonusState; const migratedQuestions = Array.isArray(parsed.questions) ? parsed.questions.map((question, qi) => ({ ...question, answers: (question.answers as unknown[]).map((answer, ai) => typeof answer === "string" ? { text: answer, points: [64,51,37,27,21][ai] ?? 21 } : answer as BonusAnswer) })) : BONUS_DEFAULTS; setBonus({ ...parsed, questions: migratedQuestions, responses: Array.isArray(parsed.responses) ? parsed.responses : ["", "", "", "", ""], correctCount: Number.isFinite(parsed.correctCount) ? parsed.correctCount : (Array.isArray(parsed.responses) ? parsed.responses.filter((response) => response && response !== "No answer").length : 0) }); } } catch { /* Keep defaults. */ }
   }, []);
   // Synchronize the host tab and audience stage tab on the same computer.
   useEffect(() => {
@@ -154,7 +154,7 @@ function Game() {
     setRoundMode(mode);
     localStorage.setItem(ROUND_KEY, mode);
     if (mode === "bonus") {
-      const freshBonus = { ...bonus, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""] };
+      const freshBonus = { ...bonus, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0 };
       setBonus(freshBonus);
       localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus));
       setBonusGuess("");
@@ -169,25 +169,36 @@ function Game() {
     const guess = bonusGuess.trim();
     if (!guess) return;
     if (bonus.responses?.[bonus.index]) {
-      setBonusFeedback("This bonus question has already been answered. Move to the next question.");
+      setBonusFeedback("This bonus question has already been answered.");
       setBonusGuess("");
       return;
     }
     const match = bonus.questions[bonus.index].answers.find((answer) => answerMatches(guess, answer.text));
-    if (!match) { setBonusFeedback("Not on the answer key. No points this time."); playWrongBuzzer(); setBonusGuess(""); return; }
-    if (bonus.accepted.includes(bonus.index + ":" + normText(match.text))) { setBonusFeedback("That answer has already been scored."); setBonusGuess(""); return; }
     const responses = [...(bonus.responses ?? ["", "", "", "", ""])];
-    responses[bonus.index] = match.text;
+    const nextCorrectCount = (bonus.correctCount ?? 0) + (match ? 1 : 0);
+    responses[bonus.index] = match ? match.text : "No answer";
+    const isFinalQuestion = bonus.index === 4;
+    const extraBonus = isFinalQuestion && nextCorrectCount >= 3 ? 500 : 0;
+    const pointsEarned = (match?.points ?? 0) + extraBonus;
     updateBonus({
       ...bonus,
-      accepted: [...bonus.accepted, bonus.index + ":" + normText(match.text)],
-      total: bonus.total + match.points,
+      accepted: match ? [...bonus.accepted, bonus.index + ":" + normText(match.text)] : bonus.accepted,
+      total: bonus.total + (match?.points ?? 0),
       responses,
+      correctCount: nextCorrectCount,
       index: Math.min(bonus.index + 1, 4),
     });
-    actRef.current({ type: "adjustScore", team: s.active, delta: match.points });
-    setBonusFeedback("Correct! +" + match.points + " points for " + s.teamNames[s.active] + ". " + (bonus.index < 4 ? "Next bonus question is ready." : "All five bonus questions are complete."));
-    setBonusGuess(""); playCorrectBell(); playAudienceApplause();
+    if (pointsEarned > 0) actRef.current({ type: "adjustScore", team: s.active, delta: pointsEarned });
+    if (match) {
+      setBonusFeedback("Correct! +" + match.points + " points. " + (isFinalQuestion ? (extraBonus ? "You answered " + nextCorrectCount + " correctly — +500 BONUS POINTS!" : "Bonus mission complete.") : "Next bonus question is ready."));
+      playCorrectBell();
+      playAudienceApplause();
+    } else {
+      setBonusFeedback(isFinalQuestion ? (extraBonus ? "Final answer missed, but " + nextCorrectCount + " correct answers earns +500 BONUS POINTS!" : "Bonus mission complete. " + nextCorrectCount + " correct answers.") : "Not on the answer key. No points. Next bonus question is ready.");
+      playWrongBuzzer();
+    }
+    if (extraBonus) playRoundWinFanfare();
+    setBonusGuess("");
   };
   const updateTimer = (next: TimerState) => {
     setTimer(next);
@@ -773,7 +784,7 @@ function Game() {
           <p className="text-muted-foreground">Both team scores go back to 0 and all questions become unused. Your edited questions are kept.</p>
           <div className="mt-5 flex justify-end gap-2">
             <button className={btnGhost} onClick={() => setConfirmNew(false)}>Cancel</button>
-            <button className={btnDanger} onClick={() => { const fresh = reducer(s, { type: "newMatch" }); dispatch({ type: "__load", s: fresh }); const pool = fresh.questions.filter((question) => question.id !== fresh.currentId).sort(() => Math.random() - 0.5); const assignments = { classic: fresh.currentId, double: pool[0]?.id ?? fresh.currentId, triple: pool[1]?.id ?? pool[0]?.id ?? fresh.currentId }; setRoundQuestions(assignments); localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments)); setRoundMode("classic"); localStorage.setItem(ROUND_KEY, "classic"); const freshBonus = { ...bonus, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""] }; setBonus(freshBonus); localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus)); setTimer({ duration: 60, remaining: 60, running: false, endsAt: null }); localStorage.setItem(TIMER_KEY, JSON.stringify({ duration: 60, remaining: 60, running: false, endsAt: null })); setConfirmNew(false); }}>Yes, new match</button>
+            <button className={btnDanger} onClick={() => { const fresh = reducer(s, { type: "newMatch" }); dispatch({ type: "__load", s: fresh }); const pool = fresh.questions.filter((question) => question.id !== fresh.currentId).sort(() => Math.random() - 0.5); const assignments = { classic: fresh.currentId, double: pool[0]?.id ?? fresh.currentId, triple: pool[1]?.id ?? pool[0]?.id ?? fresh.currentId }; setRoundQuestions(assignments); localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments)); setRoundMode("classic"); localStorage.setItem(ROUND_KEY, "classic"); const freshBonus = { ...bonus, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0 }; setBonus(freshBonus); localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus)); setTimer({ duration: 60, remaining: 60, running: false, endsAt: null }); localStorage.setItem(TIMER_KEY, JSON.stringify({ duration: 60, remaining: 60, running: false, endsAt: null })); setConfirmNew(false); }}>Yes, new match</button>
           </div>
         </Modal>
       )}
@@ -858,7 +869,7 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResu
                     </div>;
                   })}
                 </div>
-                <div className="mt-[1.5cqh] text-muted-foreground" style={{fontSize:"2.3cqh"}}>{bonus.index >= 4 && bonus.responses?.[4] ? "BONUS ROUND COMPLETE" : "THE HOST IS CHECKING YOUR ANSWER"}</div>
+                <div className="mt-[1.5cqh] text-muted-foreground" style={{fontSize:"2.3cqh"}}>{bonus.responses?.every(Boolean) ? "BONUS ROUND COMPLETE · " + bonus.correctCount + "/5 CORRECT" : "THE HOST IS CHECKING YOUR ANSWER"}</div>
               </div>
             ) : <>
             <div className="mb-[1.5cqh] flex items-center justify-center gap-[1cqw]">
@@ -1082,11 +1093,11 @@ function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, o
 
       {roundMode === "bonus" && (
         <div className="mt-4 rounded-xl border-2 border-gold/60 bg-muted p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-display text-xl text-gold">KINGSON BONUS ROUND · HOST ONLY</h3><b className="text-gold">BONUS TOTAL: {bonus.total} pts</b></div>
+          <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-display text-xl text-gold">KINGSON BONUS ROUND · HOST ONLY</h3><b className="text-gold">BONUS TOTAL: {bonus.total} pts · {bonus.correctCount}/5 CORRECT</b></div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="text-sm font-semibold text-gold">Question {Math.min(bonus.index + 1, 5)} of 5</span>
             <span className="text-xs text-muted-foreground">A correct answer automatically opens the next question.</span>
-            <button className={btnGhost} onClick={()=>onBonusChange({...bonus,index:0,accepted:[],total:0,responses:["","","","",""]})}>Reset bonus round</button>
+            <button className={btnGhost} onClick={()=>onBonusChange({...bonus,index:0,accepted:[],total:0,responses:["","","","",""],correctCount:0})}>Reset bonus round</button>
           </div>
           <label className="mt-3 block text-xs font-bold uppercase text-muted-foreground">Question shown to viewers</label>
           <input className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2" value={bonus.questions[bonus.index].prompt} onChange={e=>{const questions=[...bonus.questions];questions[bonus.index]={...questions[bonus.index],prompt:e.target.value};onBonusChange({...bonus,questions});}} />
