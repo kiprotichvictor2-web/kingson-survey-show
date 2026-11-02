@@ -52,6 +52,7 @@ const BONUS_DEFAULTS: BonusQuestion[] = [
 type BonusState = { questions: BonusQuestion[]; index: number; accepted: string[]; total: number; responses: string[] };
 const BONUS_STORAGE_KEY = "kingson-survey-show-bonus-v1";
 const ROUND_QUESTIONS_KEY = "kingson-survey-show-round-questions-v1";
+const RESULT_KEY = "kingson-survey-show-round-result-v1";
 type RoundQuestions = { classic: string; double: string; triple: string };
 type RoundResult = { mode: Exclude<RoundMode, "bonus">; team: Team; points: number; nextTarget: RoundMode; countdownSeconds: number };
 
@@ -106,6 +107,7 @@ function Game() {
     setStageOnly(new URLSearchParams(window.location.search).get("stage") === "1");
     try { const savedTimer = localStorage.getItem(TIMER_KEY); if (savedTimer) setTimer(JSON.parse(savedTimer) as TimerState); } catch { /* Keep defaults. */ }
     try { const savedRound = localStorage.getItem(ROUND_KEY); if (savedRound) setRoundMode(savedRound as RoundMode); } catch { /* Keep default. */ }
+    try { const savedResult = localStorage.getItem(RESULT_KEY); if (savedResult) setRoundResult(JSON.parse(savedResult) as RoundResult); } catch { /* Keep default. */ }
     try { const savedBonus = localStorage.getItem(BONUS_STORAGE_KEY); if (savedBonus) { const parsed = JSON.parse(savedBonus) as BonusState; const migratedQuestions = Array.isArray(parsed.questions) ? parsed.questions.map((question, qi) => ({ ...question, answers: (question.answers as unknown[]).map((answer, ai) => typeof answer === "string" ? { text: answer, points: [64,51,37,27,21][ai] ?? 21 } : answer as BonusAnswer) })) : BONUS_DEFAULTS; setBonus({ ...parsed, questions: migratedQuestions, responses: Array.isArray(parsed.responses) ? parsed.responses : ["", "", "", "", ""] }); } } catch { /* Keep defaults. */ }
   }, []);
   // Synchronize the host tab and audience stage tab on the same computer.
@@ -123,17 +125,20 @@ function Game() {
     const syncRound = (event: StorageEvent) => { if (event.key === ROUND_KEY && event.newValue) setRoundMode(event.newValue as RoundMode); };
     const syncBonus = (event: StorageEvent) => { if (event.key === BONUS_STORAGE_KEY && event.newValue) { try { setBonus(JSON.parse(event.newValue) as BonusState); } catch { /* Ignore invalid updates. */ } } };
     const syncCountdown = (event: StorageEvent) => { if (event.key === "kingson-survey-show-countdown-v1") { try { setShowCountdown(event.newValue ? JSON.parse(event.newValue) : null); } catch { /* Ignore invalid updates. */ } } };
+    const syncResult = (event: StorageEvent) => { if (event.key === RESULT_KEY) { try { setRoundResult(event.newValue ? JSON.parse(event.newValue) as RoundResult : null); } catch { /* Ignore invalid updates. */ } } };
     window.addEventListener("storage", syncFromOtherTab);
     window.addEventListener("storage", syncTimer);
     window.addEventListener("storage", syncRound);
     window.addEventListener("storage", syncBonus);
     window.addEventListener("storage", syncCountdown);
+    window.addEventListener("storage", syncResult);
     return () => {
       window.removeEventListener("storage", syncFromOtherTab);
       window.removeEventListener("storage", syncTimer);
       window.removeEventListener("storage", syncRound);
       window.removeEventListener("storage", syncBonus);
       window.removeEventListener("storage", syncCountdown);
+      window.removeEventListener("storage", syncResult);
     };
   }, []);
   useEffect(() => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }, [s, hydrated]);
@@ -211,7 +216,9 @@ function Game() {
     const points = team === "A" ? earnedA : earnedB;
     setTimer((current) => ({ ...current, running: false, endsAt: null }));
     localStorage.setItem(TIMER_KEY, JSON.stringify({ ...timer, running: false, endsAt: null }));
-    setRoundResult({ mode, team, points, nextTarget, countdownSeconds });
+    const result = { mode, team, points, nextTarget, countdownSeconds };
+    setRoundResult(result);
+    localStorage.setItem(RESULT_KEY, JSON.stringify(result));
     playRoundWinFanfare();
     playAudienceApplause();
   };
@@ -221,6 +228,7 @@ function Game() {
       const next = roundResult.nextTarget;
       const seconds = roundResult.countdownSeconds;
       setRoundResult(null);
+      localStorage.removeItem(RESULT_KEY);
       beginCountdown(next, seconds);
     }, 3000);
     return () => window.clearTimeout(timeout);
