@@ -116,9 +116,36 @@ function Game() {
     }
   };
 
+  const playWrongBuzzer = () => {
+    try {
+      const AudioContextClass = window.AudioContext;
+      if (!AudioContextClass) return;
+      const context = audioContextRef.current ?? new AudioContextClass();
+      audioContextRef.current = context;
+      if (context.state === "suspended") void context.resume();
+      const now = context.currentTime;
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = "sawtooth";
+      oscillator.frequency.setValueAtTime(145, now);
+      oscillator.frequency.exponentialRampToValueAtTime(85, now + 0.38);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.22, now + 0.02);
+      gain.gain.setValueAtTime(0.22, now + 0.22);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.48);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(now);
+      oscillator.stop(now + 0.5);
+    } catch {
+      // Sound is optional; the game should still work if audio is unavailable.
+    }
+  };
+
   const act = (a: Action) => {
     if (a.type === "strike" && s.phase !== "awarded") {
       setStrikeFlash((n) => n + 1);
+      playWrongBuzzer();
     }
     if (a.type === "reveal" && s.tiles[a.index] === "hidden") playCorrectBell();
     dispatch(a);
