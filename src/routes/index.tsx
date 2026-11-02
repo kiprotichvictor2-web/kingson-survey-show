@@ -76,7 +76,7 @@ const BONUS_DEFAULTS: BonusQuestion[] = [
   bonusQuestion("Name something people do while waiting for an important announcement.", ["Check the time","Talk quietly","Pray","Look at the speaker","Use their phone"]),
   bonusQuestion("What is something you might see at a school prize-giving day?", ["Trophies","Certificates","Students","Parents","Speeches"]),
   bonusQuestion("Name something people do when they feel embarrassed.", ["Blush","Laugh nervously","Look away","Apologize","Cover their face"]),
-  bonusQuestion("Name something people pack for a weekend trip.", ["Clothes","Toothbrush","Phone charger","Shoes"," toiletries"]),
+  bonusQuestion("Name something people pack for a weekend trip.", ["Clothes","Toothbrush","Phone charger","Shoes","Travel documents"]),
   bonusQuestion("What might make someone late for work?", ["Traffic","Oversleeping","Public transport delay","Bad weather","Looking for keys"]),
   bonusQuestion("Name something people do to relax on a day off.", ["Sleep in","Watch movies","Visit friends","Go for a walk","Listen to music"]),
   bonusQuestion("What might you find in a busy restaurant?", ["Tables","Waiters","Menus","Food","Customers"]),
