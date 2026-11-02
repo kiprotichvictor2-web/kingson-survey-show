@@ -204,6 +204,69 @@ function Game() {
     }
   };
 
+  const playAudienceApplause = () => {
+    try {
+      const AudioContextClass = window.AudioContext;
+      if (!AudioContextClass) return;
+      const context = audioContextRef.current ?? new AudioContextClass();
+      audioContextRef.current = context;
+      if (context.state === "suspended") void context.resume();
+      const now = context.currentTime;
+
+      // A short synthetic crowd swell with many crisp applause claps.
+      const crowdLength = 2.4;
+      const crowdBuffer = context.createBuffer(1, Math.floor(context.sampleRate * crowdLength), context.sampleRate);
+      const crowdData = crowdBuffer.getChannelData(0);
+      for (let i = 0; i < crowdData.length; i++) {
+        const fadeIn = Math.min(1, i / (context.sampleRate * 0.18));
+        const fadeOut = Math.min(1, (crowdData.length - i) / (context.sampleRate * 0.45));
+        crowdData[i] = (Math.random() * 2 - 1) * fadeIn * fadeOut;
+      }
+      const crowd = context.createBufferSource();
+      const crowdFilter = context.createBiquadFilter();
+      const crowdGain = context.createGain();
+      crowd.buffer = crowdBuffer;
+      crowdFilter.type = "bandpass";
+      crowdFilter.frequency.setValueAtTime(720, now);
+      crowdFilter.Q.setValueAtTime(0.65, now);
+      crowdGain.gain.setValueAtTime(0.0001, now);
+      crowdGain.gain.exponentialRampToValueAtTime(0.075, now + 0.35);
+      crowdGain.gain.exponentialRampToValueAtTime(0.0001, now + crowdLength);
+      crowd.connect(crowdFilter);
+      crowdFilter.connect(crowdGain);
+      crowdGain.connect(context.destination);
+      crowd.start(now);
+      crowd.stop(now + crowdLength);
+
+      for (let i = 0; i < 34; i++) {
+        const start = now + Math.random() * 1.9;
+        const duration = 0.035 + Math.random() * 0.045;
+        const length = Math.floor(context.sampleRate * duration);
+        const buffer = context.createBuffer(1, length, context.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let j = 0; j < length; j++) {
+          data[j] = (Math.random() * 2 - 1) * (1 - j / length);
+        }
+        const clap = context.createBufferSource();
+        const filter = context.createBiquadFilter();
+        const gain = context.createGain();
+        clap.buffer = buffer;
+        filter.type = "highpass";
+        filter.frequency.setValueAtTime(1100 + Math.random() * 1500, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.12 + Math.random() * 0.1, start + 0.004);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+        clap.connect(filter);
+        filter.connect(gain);
+        gain.connect(context.destination);
+        clap.start(start);
+        clap.stop(start + duration);
+      }
+    } catch {
+      // Sound is optional; the game should still work if audio is unavailable.
+    }
+  };
+
   const act = (a: Action) => {
     if (a.type === "strike" && s.phase !== "awarded") {
       setStrikeFlash((n) => n + 1);
@@ -211,8 +274,14 @@ function Game() {
     }
     if (a.type === "reveal" && s.tiles[a.index] === "hidden") playCorrectBell();
     const nextState = reducer(s, a);
-    if (s.phase !== "awarded" && nextState.phase === "awarded") playRoundWinFanfare();
-    if (a.type === "endGame" && !s.gameOver && nextState.gameOver) playGrandWinnerFanfare();
+    if (s.phase !== "awarded" && nextState.phase === "awarded") {
+      playRoundWinFanfare();
+      playAudienceApplause();
+    }
+    if (a.type === "endGame" && !s.gameOver && nextState.gameOver) {
+      playGrandWinnerFanfare();
+      playAudienceApplause();
+    }
     dispatch(a);
   };
   const actRef = useRef(act);
