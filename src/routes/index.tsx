@@ -267,6 +267,76 @@ function Game() {
     }
   };
 
+  const playShowIntro = () => {
+    try {
+      const AudioContextClass = window.AudioContext;
+      if (!AudioContextClass) return;
+      const context = audioContextRef.current ?? new AudioContextClass();
+      audioContextRef.current = context;
+      if (context.state === "suspended") void context.resume();
+      const now = context.currentTime;
+
+      // Bright opening theme that builds into a big game-show finish.
+      const melody = [
+        { frequency: 392, start: 0, duration: 0.42 },
+        { frequency: 523.25, start: 0.34, duration: 0.42 },
+        { frequency: 659.25, start: 0.68, duration: 0.42 },
+        { frequency: 783.99, start: 1.02, duration: 0.55 },
+        { frequency: 1046.5, start: 1.62, duration: 0.9 },
+      ];
+      melody.forEach(({ frequency, start, duration }) => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = "triangle";
+        oscillator.frequency.setValueAtTime(frequency, now + start);
+        gain.gain.setValueAtTime(0.0001, now + start);
+        gain.gain.exponentialRampToValueAtTime(0.16, now + start + 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + start + duration);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(now + start);
+        oscillator.stop(now + start + duration + 0.02);
+      });
+
+      // Fast, accelerating low drum-roll pulses.
+      for (let i = 0; i < 14; i++) {
+        const start = now + 0.85 + i * (0.105 - i * 0.0045);
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(105 - i * 2.2, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.12, start + 0.008);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.075);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(start);
+        oscillator.stop(start + 0.08);
+      }
+
+      // Final triumphant chord.
+      [392, 493.88, 587.33, 783.99].forEach((frequency) => {
+        const start = now + 2.55;
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = "triangle";
+        oscillator.frequency.setValueAtTime(frequency, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.17, start + 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 1.25);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(start);
+        oscillator.stop(start + 1.28);
+      });
+
+      // Welcome the audience after the musical finish.
+      window.setTimeout(() => playAudienceApplause(), 2850);
+    } catch {
+      // The show can still begin if audio is unavailable.
+    }
+  };
+
   const playTeamEntranceSound = (team: Team) => {
     try {
       const AudioContextClass = window.AudioContext;
@@ -451,6 +521,7 @@ function Game() {
             onHelp={() => setHelp(true)}
             onEdit={() => setEditing(true)}
             onNewMatch={() => setConfirmNew(true)}
+            onPlayIntro={playShowIntro}
           />
         )}
       </div>
@@ -598,15 +669,16 @@ function Podium({ s, team }: { s: GameState; team: Team }) {
 
 /* ---------------- HOST ---------------- */
 
-function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, onNewMatch }: {
-  s: GameState; q: Question; act: (a: Action) => void; timer: TimerState; onTimerChange: (timer: TimerState) => void; onStage: () => void; onHelp: () => void; onEdit: () => void; onNewMatch: () => void;
+function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, onNewMatch, onPlayIntro }: {
+  s: GameState; q: Question; act: (a: Action) => void; timer: TimerState; onTimerChange: (timer: TimerState) => void; onStage: () => void; onHelp: () => void; onEdit: () => void; onNewMatch: () => void; onPlayIntro: () => void;
 }) {
   const unused = s.questions.filter((x) => !s.usedIds.includes(x.id)).length;
   return (
     <section className="mt-4 rounded-2xl border-2 border-dashed border-border bg-card p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-xl tracking-wide text-gold">HOST CONTROLS <span className="ml-2 font-sans text-xs font-normal text-muted-foreground">not part of the show — open Stage view in a second tab when streaming</span></h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button className={btnGold} onClick={onPlayIntro}>▶ Play show intro</button>
           <button className={btnGhost} onClick={onHelp}>How to play (H)</button>
           <button className={btnBlue} onClick={onStage}>Stage view (S)</button>
         </div>
