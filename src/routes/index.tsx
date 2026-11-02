@@ -50,6 +50,8 @@ const BONUS_DEFAULTS: BonusQuestion[] = [
 ];
 type BonusState = { questions: BonusQuestion[]; index: number; accepted: string[]; total: number };
 const BONUS_STORAGE_KEY = "kingson-survey-show-bonus-v1";
+const ROUND_QUESTIONS_KEY = "kingson-survey-show-round-questions-v1";
+type RoundQuestions = { classic: string; double: string; triple: string };
 
 
 function Game() {
@@ -61,13 +63,39 @@ function Game() {
   const [strikeFlash, setStrikeFlash] = useState(0);
   const [timer, setTimer] = useState<TimerState>({ duration: 60, remaining: 60, running: false, endsAt: null });
   const [roundMode, setRoundMode] = useState<RoundMode>("classic");
+  const [roundQuestions, setRoundQuestions] = useState<RoundQuestions | null>(null);
   const [bonus, setBonus] = useState<BonusState>({ questions: BONUS_DEFAULTS, index: 0, accepted: [], total: 0 });
   const [bonusGuess, setBonusGuess] = useState("");
   const [bonusFeedback, setBonusFeedback] = useState("");
 
   useEffect(() => {
     const saved = loadState();
-    dispatch({ type: "__load", s: saved ?? initialState() });
+    const loadedGame = saved ?? initialState();
+    dispatch({ type: "__load", s: loadedGame });
+    try {
+      const storedRounds = localStorage.getItem(ROUND_QUESTIONS_KEY);
+      const parsed = storedRounds ? JSON.parse(storedRounds) as RoundQuestions : null;
+      const validIds = new Set(loadedGame.questions.map((question) => question.id));
+      if (parsed && validIds.has(parsed.classic) && validIds.has(parsed.double) && validIds.has(parsed.triple)
+        && new Set([parsed.classic, parsed.double, parsed.triple]).size === 3) {
+        setRoundQuestions(parsed);
+      } else {
+        const available = loadedGame.questions.filter((question) => question.id !== loadedGame.currentId);
+        const shuffled = [...available].sort(() => Math.random() - 0.5);
+        const assignments = {
+          classic: loadedGame.currentId,
+          double: shuffled[0]?.id ?? loadedGame.currentId,
+          triple: shuffled[1]?.id ?? shuffled[0]?.id ?? loadedGame.currentId,
+        };
+        setRoundQuestions(assignments);
+        localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments));
+      }
+    } catch {
+      const available = loadedGame.questions.filter((question) => question.id !== loadedGame.currentId);
+      const assignments = { classic: loadedGame.currentId, double: available[0]?.id ?? loadedGame.currentId, triple: available[1]?.id ?? available[0]?.id ?? loadedGame.currentId };
+      setRoundQuestions(assignments);
+      localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments));
+    }
     setStageOnly(new URLSearchParams(window.location.search).get("stage") === "1");
     try { const savedTimer = localStorage.getItem(TIMER_KEY); if (savedTimer) setTimer(JSON.parse(savedTimer) as TimerState); } catch { /* Keep defaults. */ }
     try { const savedRound = localStorage.getItem(ROUND_KEY); if (savedRound) setRoundMode(savedRound as RoundMode); } catch { /* Keep default. */ }
@@ -94,10 +122,13 @@ function Game() {
   useEffect(() => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }, [s, hydrated]);
   const changeRound = (mode: RoundMode) => {
     if (mode === roundMode) return;
-    // Every round starts with a clean answer board and a fresh unused survey question.
-    // Using "next" preserves the points already banked by either team.
-    const freshGame = reducer(s, { type: "next", random: true });
-    dispatch({ type: "__load", s: freshGame });
+    // Keep one assigned survey question for each main round throughout this match.
+    // Returning to Classic/Double/Triple restores that exact question with a clean board.
+    if (mode !== "bonus" && roundQuestions) {
+      const questionId = roundQuestions[mode];
+      const freshGame = reducer(s, { type: "next", id: questionId });
+      dispatch({ type: "__load", s: { ...freshGame, active: s.active, controlTeam: s.active } });
+    }
     setRoundMode(mode);
     localStorage.setItem(ROUND_KEY, mode);
     if (mode === "bonus") {
@@ -630,7 +661,7 @@ function Game() {
           <p className="text-muted-foreground">Both team scores go back to 0 and all questions become unused. Your edited questions are kept.</p>
           <div className="mt-5 flex justify-end gap-2">
             <button className={btnGhost} onClick={() => setConfirmNew(false)}>Cancel</button>
-            <button className={btnDanger} onClick={() => { act({ type: "newMatch" }); setConfirmNew(false); }}>Yes, new match</button>
+            <button className={btnDanger} onClick={() => { act({ type: "newMatch" }); const assignments = { classic: s.currentId, double: "", triple: "" }; const pool = s.questions.filter((question) => question.id !== s.currentId).sort(() => Math.random() - 0.5); assignments.double = pool[0]?.id ?? s.currentId; assignments.triple = pool[1]?.id ?? pool[0]?.id ?? s.currentId; setRoundQuestions(assignments); localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments)); changeRound("classic"); setConfirmNew(false); }}>Yes, new match</button>
           </div>
         </Modal>
       )}
