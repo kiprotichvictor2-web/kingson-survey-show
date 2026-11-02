@@ -171,7 +171,48 @@ function Game() {
   const transitionLockRef = useRef(false);
 
   useEffect(() => {
+    const isStage = new URLSearchParams(window.location.search).get("stage") === "1";
+    setStageOnly(isStage);
     const saved = loadState();
+
+    // The audience stage tab must join the host's current match. Opening the
+    // host page, however, always starts a clean match with fresh questions.
+    if (!isStage) {
+      const fresh = initialState(saved?.questions);
+      if (saved?.teamNames) fresh.teamNames = saved.teamNames;
+      const drawnIds = drawSurveyIds(fresh.questions);
+      const assignments: RoundQuestionsByTeam = {
+        A: { classic: drawnIds[0] ?? fresh.currentId, double: drawnIds[1] ?? fresh.currentId, triple: drawnIds[2] ?? fresh.currentId },
+        B: { classic: drawnIds[3] ?? fresh.currentId, double: drawnIds[4] ?? fresh.currentId, triple: drawnIds[5] ?? fresh.currentId },
+      };
+      const started = reducer({ ...fresh, usedIds: [] }, { type: "next", id: assignments.A.classic });
+      dispatch({ type: "__load", s: started });
+      setRoundQuestions(assignments);
+      localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments));
+      setRoundMode("classic");
+      localStorage.setItem(ROUND_KEY, "classic");
+      const freshTimer = { duration: 60, remaining: 60, running: false, endsAt: null };
+      setTimer(freshTimer);
+      localStorage.setItem(TIMER_KEY, JSON.stringify(freshTimer));
+      setRoundResult(null);
+      localStorage.removeItem(RESULT_KEY);
+      setFinalResults(null);
+      localStorage.removeItem("kingson-survey-show-final-results-v1");
+      setShowCountdown(null);
+      localStorage.removeItem("kingson-survey-show-countdown-v1");
+      setTeamLeg(1);
+      setRoundPoints({
+        A: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 },
+        B: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 },
+      });
+      setAutoPlay(false);
+      transitionLockRef.current = false;
+      const freshBonus = { ...bonus, questions: drawBonusQuestions(), index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0 };
+      setBonus(freshBonus);
+      localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus));
+      return;
+    }
+
     const loadedGame = saved ?? initialState();
     dispatch({ type: "__load", s: loadedGame });
     try {
@@ -191,16 +232,15 @@ function Game() {
       localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments));
     } catch {
       const available = loadedGame.questions.filter((question) => question.id !== loadedGame.currentId);
-      const assignments = { classic: loadedGame.currentId, double: available[0]?.id ?? loadedGame.currentId, triple: available[1]?.id ?? available[0]?.id ?? loadedGame.currentId };
+      const assignments = { A: { classic: loadedGame.currentId, double: available[0]?.id ?? loadedGame.currentId, triple: available[1]?.id ?? available[0]?.id ?? loadedGame.currentId }, B: { classic: available[2]?.id ?? loadedGame.currentId, double: available[3]?.id ?? loadedGame.currentId, triple: available[4]?.id ?? loadedGame.currentId } };
       setRoundQuestions(assignments);
       localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments));
     }
-    setStageOnly(new URLSearchParams(window.location.search).get("stage") === "1");
     try { const savedTimer = localStorage.getItem(TIMER_KEY); if (savedTimer) setTimer(JSON.parse(savedTimer) as TimerState); } catch { /* Keep defaults. */ }
     try { const savedRound = localStorage.getItem(ROUND_KEY); if (savedRound) setRoundMode(savedRound as RoundMode); } catch { /* Keep default. */ }
     try { const savedResult = localStorage.getItem(RESULT_KEY); if (savedResult) setRoundResult(JSON.parse(savedResult) as RoundResult); } catch { /* Keep default. */ }
     try { const savedFinal = localStorage.getItem("kingson-survey-show-final-results-v1"); if (savedFinal) setFinalResults(JSON.parse(savedFinal) as FinalResults); } catch { /* Keep default. */ }
-    try { const savedBonus = localStorage.getItem(BONUS_STORAGE_KEY); if (savedBonus) { const parsed = JSON.parse(savedBonus) as BonusState; const migratedQuestions = Array.isArray(parsed.questions) ? parsed.questions.map((question, qi) => ({ ...question, answers: (question.answers as unknown[]).map((answer, ai) => typeof answer === "string" ? { text: answer, points: [64,51,37,27,21][ai] ?? 21 } : answer as BonusAnswer) })) : BONUS_DEFAULTS; setBonus({ ...parsed, questions: migratedQuestions, responses: Array.isArray(parsed.responses) ? parsed.responses : ["", "", "", "", ""], correctCount: Number.isFinite(parsed.correctCount) ? parsed.correctCount : (Array.isArray(parsed.responses) ? parsed.responses.filter((response) => response && response !== "No answer").length : 0) }); } } catch { /* Keep defaults. */ }
+    try { const savedBonus = localStorage.getItem(BONUS_STORAGE_KEY); if (savedBonus) { const parsed = JSON.parse(savedBonus) as BonusState; const migratedQuestions = Array.isArray(parsed.questions) ? parsed.questions.map((question) => ({ ...question, answers: (question.answers as unknown[]).map((answer, ai) => typeof answer === "string" ? { text: answer, points: [64,51,37,27,21][ai] ?? 21 } : answer as BonusAnswer) })) : BONUS_DEFAULTS; setBonus({ ...parsed, questions: migratedQuestions, responses: Array.isArray(parsed.responses) ? parsed.responses : ["", "", "", "", ""], correctCount: Number.isFinite(parsed.correctCount) ? parsed.correctCount : (Array.isArray(parsed.responses) ? parsed.responses.filter((response) => response && response !== "No answer").length : 0) }); } } catch { /* Keep defaults. */ }
   }, []);
   // Synchronize the host tab and audience stage tab on the same computer.
   useEffect(() => {
