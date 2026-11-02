@@ -54,6 +54,10 @@ const BONUS_STORAGE_KEY = "kingson-survey-show-bonus-v1";
 const ROUND_QUESTIONS_KEY = "kingson-survey-show-round-questions-v1";
 const RESULT_KEY = "kingson-survey-show-round-result-v1";
 type RoundQuestions = { classic: string; double: string; triple: string };
+type RoundQuestionsByTeam = Record<Team, RoundQuestions>;
+type CountdownTarget = RoundMode | "handover";
+type TeamBreakdown = { classic: number; double: number; triple: number; bonus: number; bonusExtra: number };
+type FinalResults = { team: Team; breakdown: TeamBreakdown; total: number; finalMatch: boolean; champion: Team | "tie" | null };
 type RoundResult = { mode: Exclude<RoundMode, "bonus">; team: Team; points: number; nextTarget: RoundMode; countdownSeconds: number };
 
 
@@ -66,13 +70,19 @@ function Game() {
   const [strikeFlash, setStrikeFlash] = useState(0);
   const [timer, setTimer] = useState<TimerState>({ duration: 60, remaining: 60, running: false, endsAt: null });
   const [roundMode, setRoundMode] = useState<RoundMode>("classic");
-  const [roundQuestions, setRoundQuestions] = useState<RoundQuestions | null>(null);
+  const [roundQuestions, setRoundQuestions] = useState<RoundQuestionsByTeam | null>(null);
   const [bonus, setBonus] = useState<BonusState>({ questions: BONUS_DEFAULTS, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0 });
   const [bonusGuess, setBonusGuess] = useState("");
   const [bonusFeedback, setBonusFeedback] = useState("");
-  const [showCountdown, setShowCountdown] = useState<{ remaining: number; target: RoundMode } | null>(null);
+  const [showCountdown, setShowCountdown] = useState<{ remaining: number; target: CountdownTarget } | null>(null);
   const [autoPlay, setAutoPlay] = useState(false);
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
+  const [finalResults, setFinalResults] = useState<FinalResults | null>(null);
+  const [teamLeg, setTeamLeg] = useState<1 | 2>(1);
+  const [roundPoints, setRoundPoints] = useState<Record<Team, TeamBreakdown>>({
+    A: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 },
+    B: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 },
+  });
   const roundStartScoresRef = useRef<Record<Team, number>>({ A: 0, B: 0 });
   const transitionLockRef = useRef(false);
 
@@ -82,22 +92,19 @@ function Game() {
     dispatch({ type: "__load", s: loadedGame });
     try {
       const storedRounds = localStorage.getItem(ROUND_QUESTIONS_KEY);
-      const parsed = storedRounds ? JSON.parse(storedRounds) as RoundQuestions : null;
+      const parsed = storedRounds ? JSON.parse(storedRounds) as RoundQuestionsByTeam | RoundQuestions : null;
       const validIds = new Set(loadedGame.questions.map((question) => question.id));
-      if (parsed && validIds.has(parsed.classic) && validIds.has(parsed.double) && validIds.has(parsed.triple)
-        && new Set([parsed.classic, parsed.double, parsed.triple]).size === 3) {
-        setRoundQuestions(parsed);
-      } else {
-        const available = loadedGame.questions.filter((question) => question.id !== loadedGame.currentId);
-        const shuffled = [...available].sort(() => Math.random() - 0.5);
-        const assignments = {
-          classic: loadedGame.currentId,
-          double: shuffled[0]?.id ?? loadedGame.currentId,
-          triple: shuffled[1]?.id ?? shuffled[0]?.id ?? loadedGame.currentId,
-        };
-        setRoundQuestions(assignments);
-        localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments));
-      }
+      const pool = [...loadedGame.questions.filter((question) => question.id !== loadedGame.currentId)].sort(() => Math.random() - 0.5);
+      const legacyA = parsed && "classic" in parsed ? parsed as RoundQuestions : null;
+      const validSet = (set: RoundQuestions | undefined) => Boolean(set && validIds.has(set.classic) && validIds.has(set.double) && validIds.has(set.triple) && new Set([set.classic,set.double,set.triple]).size === 3);
+      const assignments: RoundQuestionsByTeam = parsed && "A" in parsed && validSet(parsed.A) && validSet(parsed.B)
+        ? parsed as RoundQuestionsByTeam
+        : {
+            A: legacyA && validSet(legacyA) ? legacyA : { classic: loadedGame.currentId, double: pool[0]?.id ?? loadedGame.currentId, triple: pool[1]?.id ?? pool[0]?.id ?? loadedGame.currentId },
+            B: { classic: pool[2]?.id ?? pool[0]?.id ?? loadedGame.currentId, double: pool[3]?.id ?? pool[1]?.id ?? loadedGame.currentId, triple: pool[4]?.id ?? pool[2]?.id ?? loadedGame.currentId },
+          };
+      setRoundQuestions(assignments);
+      localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments));
     } catch {
       const available = loadedGame.questions.filter((question) => question.id !== loadedGame.currentId);
       const assignments = { classic: loadedGame.currentId, double: available[0]?.id ?? loadedGame.currentId, triple: available[1]?.id ?? available[0]?.id ?? loadedGame.currentId };
@@ -126,12 +133,14 @@ function Game() {
     const syncBonus = (event: StorageEvent) => { if (event.key === BONUS_STORAGE_KEY && event.newValue) { try { setBonus(JSON.parse(event.newValue) as BonusState); } catch { /* Ignore invalid updates. */ } } };
     const syncCountdown = (event: StorageEvent) => { if (event.key === "kingson-survey-show-countdown-v1") { try { setShowCountdown(event.newValue ? JSON.parse(event.newValue) : null); } catch { /* Ignore invalid updates. */ } } };
     const syncResult = (event: StorageEvent) => { if (event.key === RESULT_KEY) { try { setRoundResult(event.newValue ? JSON.parse(event.newValue) as RoundResult : null); } catch { /* Ignore invalid updates. */ } } };
+    const syncFinal = (event: StorageEvent) => { if (event.key === "kingson-survey-show-final-results-v1") { try { setFinalResults(event.newValue ? JSON.parse(event.newValue) as FinalResults : null); } catch { /* Ignore invalid updates. */ } } };
     window.addEventListener("storage", syncFromOtherTab);
     window.addEventListener("storage", syncTimer);
     window.addEventListener("storage", syncRound);
     window.addEventListener("storage", syncBonus);
     window.addEventListener("storage", syncCountdown);
     window.addEventListener("storage", syncResult);
+    window.addEventListener("storage", syncFinal);
     return () => {
       window.removeEventListener("storage", syncFromOtherTab);
       window.removeEventListener("storage", syncTimer);
@@ -139,6 +148,7 @@ function Game() {
       window.removeEventListener("storage", syncBonus);
       window.removeEventListener("storage", syncCountdown);
       window.removeEventListener("storage", syncResult);
+      window.removeEventListener("storage", syncFinal);
     };
   }, []);
   useEffect(() => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }, [s, hydrated]);
@@ -147,7 +157,7 @@ function Game() {
     // Keep one assigned survey question for each main round throughout this match.
     // Returning to Classic/Double/Triple restores that exact question with a clean board.
     if (mode !== "bonus" && roundQuestions) {
-      const questionId = roundQuestions[mode];
+      const questionId = roundQuestions[s.active][mode];
       const freshGame = reducer(s, { type: "next", id: questionId });
       dispatch({ type: "__load", s: { ...freshGame, active: s.active, controlTeam: s.active } });
     }
@@ -198,6 +208,22 @@ function Game() {
       playWrongBuzzer();
     }
     if (extraBonus) playRoundWinFanfare();
+    if (isFinalQuestion) {
+      const team = s.active;
+      const breakdown = {
+        ...(roundPoints[team] ?? { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 }),
+        bonus: bonus.total + (match?.points ?? 0),
+        bonusExtra: extraBonus,
+      };
+      const finalMatch = teamLeg === 2;
+      const total = s.scores[team] + pointsEarned;
+      const final = { team, breakdown, total, finalMatch, champion: finalMatch ? (total > s.scores[team === "A" ? "B" : "A"] ? team : total < s.scores[team === "A" ? "B" : "A"] ? (team === "A" ? "B" : "A") : "tie") : null };
+      setFinalResults(final);
+      localStorage.setItem("kingson-survey-show-final-results-v1", JSON.stringify(final));
+      setAutoPlay(false);
+      if (!finalMatch) beginCountdown("handover", 30);
+      else playRoundWinFanfare();
+    }
     setBonusGuess("");
   };
   const updateTimer = (next: TimerState) => {
@@ -205,7 +231,7 @@ function Game() {
     localStorage.setItem(TIMER_KEY, JSON.stringify(next));
   };
 
-  const beginCountdown = (target: RoundMode, seconds: number) => {
+  const beginCountdown = (target: CountdownTarget, seconds: number) => {
     transitionLockRef.current = true;
     const next = { remaining: seconds, target };
     setShowCountdown(next);
@@ -214,6 +240,9 @@ function Game() {
   const playNow = () => {
     roundStartScoresRef.current = { ...s.scores };
     setRoundResult(null);
+    setFinalResults(null);
+    setTeamLeg(1);
+    setRoundPoints({ A: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 }, B: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 } });
     setAutoPlay(true);
     beginCountdown(roundMode === "bonus" ? "classic" : roundMode, 3);
   };
@@ -221,10 +250,9 @@ function Game() {
     const scoringTeam = s.phase === "steal" ? s.controlTeam : s.active;
     const settled = s.phase === "awarded" ? s : reducer(s, { type: "award", team: scoringTeam });
     if (settled !== s) dispatch({ type: "__load", s: settled });
-    const earnedA = Math.max(0, settled.scores.A - roundStartScoresRef.current.A);
-    const earnedB = Math.max(0, settled.scores.B - roundStartScoresRef.current.B);
-    const team: Team = earnedA > earnedB ? "A" : earnedB > earnedA ? "B" : scoringTeam;
-    const points = team === "A" ? earnedA : earnedB;
+    const team = scoringTeam;
+    const points = Math.max(0, settled.scores[team] - roundStartScoresRef.current[team]);
+    setRoundPoints((previous) => ({ ...previous, [team]: { ...previous[team], [mode]: points } }));
     setTimer((current) => ({ ...current, running: false, endsAt: null }));
     localStorage.setItem(TIMER_KEY, JSON.stringify({ ...timer, running: false, endsAt: null }));
     const result = { mode, team, points, nextTarget, countdownSeconds };
@@ -255,7 +283,26 @@ function Game() {
           return next;
         }
         localStorage.removeItem("kingson-survey-show-countdown-v1");
-        if (current.target === "bonus") {
+        if (current.target === "handover") {
+          const nextTeam: Team = stateRef.current.active === "A" ? "B" : "A";
+          const currentState = stateRef.current;
+          const questionId = roundQuestions?.[nextTeam].classic;
+          const switched = questionId ? reducer({ ...currentState, active: nextTeam, controlTeam: nextTeam, phase: "play" }, { type: "next", id: questionId }) : { ...currentState, active: nextTeam, controlTeam: nextTeam, phase: "play" as const };
+          dispatch({ type: "__load", s: switched });
+          setRoundMode("classic");
+          localStorage.setItem(ROUND_KEY, "classic");
+          setTeamLeg(2);
+          setFinalResults(null);
+          localStorage.removeItem("kingson-survey-show-final-results-v1");
+          setRoundPoints((previous) => ({ ...previous, [nextTeam]: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 } }));
+          const freshBonus = { ...bonus, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0 };
+          setBonus(freshBonus);
+          localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus));
+          setAutoPlay(true);
+          roundStartScoresRef.current = { ...switched.scores };
+          const started = { duration: 60, remaining: 60, running: true, endsAt: Date.now() + 60000 };
+          updateTimer(started);
+        } else if (current.target === "bonus") {
           changeRound("bonus");
           setAutoPlay(false);
         } else {
@@ -739,8 +786,8 @@ function Game() {
     <main className="min-h-screen bg-background text-foreground">
       <div className={stageOnly ? "flex h-screen items-center justify-center bg-background" : "mx-auto max-w-[1500px] p-3 lg:p-5"}>
         <div className={(stageOnly ? "aspect-video w-full max-h-screen max-w-[calc(100vh*16/9)]" : "aspect-video w-full") + " relative"}>
-          <Stage s={s} q={q} strikeFlash={strikeFlash} timer={timer} onReveal={(i) => act({ type: "reveal", index: i })} roundMode={roundMode} bonus={bonus} roundResult={roundResult} />
-          {showCountdown && <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm"><div className="font-display text-[min(24vw,24cqh)] font-black leading-none text-gold drop-shadow-[0_0_35px_rgba(245,190,82,.7)]">{showCountdown.remaining}</div><div className="mt-3 font-display text-[min(4vw,4cqh)] tracking-[.3em] text-white">{showCountdown.target === "bonus" ? "GET READY FOR THE KINGSON BONUS ROUND" : "GET READY!"}</div></div>}
+          <Stage s={s} q={q} strikeFlash={strikeFlash} timer={timer} onReveal={(i) => act({ type: "reveal", index: i })} roundMode={roundMode} bonus={bonus} roundResult={roundResult} finalResults={finalResults} showCountdown={showCountdown} />
+          {showCountdown && showCountdown.target !== "handover" && <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm"><div className="font-display text-[min(24vw,24cqh)] font-black leading-none text-gold drop-shadow-[0_0_35px_rgba(245,190,82,.7)]">{showCountdown.remaining}</div><div className="mt-3 font-display text-[min(4vw,4cqh)] tracking-[.3em] text-white">{showCountdown.target === "bonus" ? "GET READY FOR THE KINGSON BONUS ROUND" : "GET READY!"}</div></div>}
         </div>
         {stageOnly ? (
           <button onClick={() => setStageOnly(false)} className="fixed bottom-2 right-2 rounded bg-muted/40 px-2 py-1 text-xs text-muted-foreground opacity-30 hover:opacity-100">
@@ -784,7 +831,7 @@ function Game() {
           <p className="text-muted-foreground">Both team scores go back to 0 and all questions become unused. Your edited questions are kept.</p>
           <div className="mt-5 flex justify-end gap-2">
             <button className={btnGhost} onClick={() => setConfirmNew(false)}>Cancel</button>
-            <button className={btnDanger} onClick={() => { const fresh = reducer(s, { type: "newMatch" }); dispatch({ type: "__load", s: fresh }); const pool = fresh.questions.filter((question) => question.id !== fresh.currentId).sort(() => Math.random() - 0.5); const assignments = { classic: fresh.currentId, double: pool[0]?.id ?? fresh.currentId, triple: pool[1]?.id ?? pool[0]?.id ?? fresh.currentId }; setRoundQuestions(assignments); localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments)); setRoundMode("classic"); localStorage.setItem(ROUND_KEY, "classic"); const freshBonus = { ...bonus, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0 }; setBonus(freshBonus); localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus)); setTimer({ duration: 60, remaining: 60, running: false, endsAt: null }); localStorage.setItem(TIMER_KEY, JSON.stringify({ duration: 60, remaining: 60, running: false, endsAt: null })); setConfirmNew(false); }}>Yes, new match</button>
+            <button className={btnDanger} onClick={() => { const fresh = reducer(s, { type: "newMatch" }); dispatch({ type: "__load", s: fresh }); const pool = fresh.questions.filter((question) => question.id !== fresh.currentId).sort(() => Math.random() - 0.5); const assignments: RoundQuestionsByTeam = { A: { classic: fresh.currentId, double: pool[0]?.id ?? fresh.currentId, triple: pool[1]?.id ?? pool[0]?.id ?? fresh.currentId }, B: { classic: pool[2]?.id ?? pool[0]?.id ?? fresh.currentId, double: pool[3]?.id ?? pool[1]?.id ?? fresh.currentId, triple: pool[4]?.id ?? pool[2]?.id ?? fresh.currentId } }; setRoundQuestions(assignments); localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments)); setTeamLeg(1); setFinalResults(null); localStorage.removeItem("kingson-survey-show-final-results-v1"); setRoundPoints({ A: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 }, B: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 } }); setAutoPlay(false); setRoundResult(null); setShowCountdown(null); setRoundMode("classic"); localStorage.setItem(ROUND_KEY, "classic"); const freshBonus = { ...bonus, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0 }; setBonus(freshBonus); localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus)); setTimer({ duration: 60, remaining: 60, running: false, endsAt: null }); localStorage.setItem(TIMER_KEY, JSON.stringify({ duration: 60, remaining: 60, running: false, endsAt: null })); setConfirmNew(false); }}>Yes, new match</button>
           </div>
         </Modal>
       )}
@@ -794,7 +841,7 @@ function Game() {
 
 /* ---------------- STAGE ---------------- */
 
-function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResult }: { s: GameState; q: Question; strikeFlash: number; timer: TimerState; onReveal: (i: number) => void; roundMode: RoundMode; bonus: BonusState; roundResult: RoundResult | null }) {
+function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResult, finalResults, showCountdown }: { s: GameState; q: Question; strikeFlash: number; timer: TimerState; onReveal: (i: number) => void; roundMode: RoundMode; bonus: BonusState; roundResult: RoundResult | null; finalResults: FinalResults | null; showCountdown: { remaining: number; target: CountdownTarget } | null }) {
   const [flash, setFlash] = useState(false);
   useEffect(() => {
     if (!strikeFlash) return;
@@ -918,6 +965,17 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResu
         )}
       </div>
 
+      {finalResults && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto bg-black/95 px-6 py-5 text-center backdrop-blur-lg">
+          <div className="font-display tracking-[.3em] text-electric" style={{fontSize:"3.5cqh"}}>{finalResults.finalMatch ? "KINGSON SURVEY SHOW · FINAL SCORE" : "TEAM MATCH RESULTS"}</div>
+          <div className="mt-2 font-display text-white" style={{fontSize:"5cqh"}}>{s.teamNames[finalResults.team]}</div>
+          <div className="mt-3 grid w-full max-w-3xl grid-cols-[1fr_auto] gap-x-8 gap-y-2 text-left" style={{fontSize:"3.1cqh"}}>
+            {([["CLASSIC ROUND",finalResults.breakdown.classic],["DOUBLE ROUND ×2",finalResults.breakdown.double],["TRIPLE ROUND ×3",finalResults.breakdown.triple],["KINGSON BONUS MISSION",finalResults.breakdown.bonus],["BONUS REWARD",finalResults.breakdown.bonusExtra]] as [string,number][]).map(([label,points])=><div key={label} className="contents"><div className="border-b border-white/15 py-2 text-white/80">{label}</div><div className="border-b border-white/15 py-2 text-right font-display text-gold">{points.toLocaleString()}</div></div>)}
+            <div className="pt-3 font-display text-white">TOTAL POINTS</div><div className="pt-3 text-right font-display gold-text">{finalResults.total.toLocaleString()}</div>
+          </div>
+          {finalResults.finalMatch ? <div className="mt-4 font-display text-gold" style={{fontSize:"5cqh"}}>{finalResults.champion === "tie" ? "IT'S A TIE!" : "CHAMPION: " + s.teamNames[finalResults.champion as Team]}</div> : <div className="mt-4 font-display text-white" style={{fontSize:"3.5cqh"}}>TEAM B PREPARES IN <span className="text-gold">{showCountdown?.target === "handover" ? showCountdown.remaining : 30}</span> SECONDS</div>}
+        </div>
+      )}
       {roundResult && (
         <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/92 px-8 text-center backdrop-blur-md">
           <div className="font-display tracking-[.25em] text-electric" style={{ fontSize: "4cqh" }}>{roundResult.mode.toUpperCase()} ROUND RESULTS</div>
