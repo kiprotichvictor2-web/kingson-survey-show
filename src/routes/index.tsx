@@ -148,6 +148,7 @@ type RoundResult = { mode: Exclude<RoundMode, "bonus">; team: Team; points: numb
 function Game() {
   const [{ s, hydrated }, dispatch] = useReducer(wrapped, null, () => ({ s: initialState(), hydrated: false }));
   const [stageOnly, setStageOnly] = useState(false);
+  const [welcomeOpen, setWelcomeOpen] = useState(true);
   const [help, setHelp] = useState(false);
   const [editing, setEditing] = useState(false);
   const [confirmNew, setConfirmNew] = useState(false);
@@ -173,6 +174,7 @@ function Game() {
   useEffect(() => {
     const isStage = new URLSearchParams(window.location.search).get("stage") === "1";
     setStageOnly(isStage);
+    if (isStage) setWelcomeOpen(false);
     const saved = loadState();
 
     // The audience stage tab must join the host's current match. Opening the
@@ -713,14 +715,24 @@ function Game() {
     }
   };
 
-  // Automatically launch the intro once when the host game opens.
-  // Browsers may block audible autoplay until the host interacts with the page.
-  const autoIntroStartedRef = useRef(false);
-  useEffect(() => {
-    if (!hydrated || stageOnly || autoIntroStartedRef.current) return;
-    autoIntroStartedRef.current = true;
+  // The welcome screen waits for a real Play click so browsers can play sound.
+  const enterShow = () => {
     playShowIntro();
-  }, [hydrated, stageOnly]);
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      window.setTimeout(() => {
+        const announcement = new SpeechSynthesisUtterance(
+          "Welcome to Kingson Survey Show! Get ready for the ultimate battle of answers. Gather your team, bring your best guesses, and let's play!"
+        );
+        announcement.lang = "en-US";
+        announcement.rate = 0.92;
+        announcement.pitch = 0.92;
+        announcement.volume = 1;
+        window.speechSynthesis.speak(announcement);
+      }, 2600);
+    }
+    window.setTimeout(() => setWelcomeOpen(false), 6500);
+  };
 
   const playTeamEntranceSound = (team: Team) => {
     try {
@@ -909,6 +921,32 @@ function Game() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
+      {welcomeOpen && !stageOnly && (
+        <div className="fixed inset-0 z-[100] flex min-h-screen items-center justify-center overflow-hidden bg-[#030712] px-5 py-10 text-center">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(12,74,110,0.42),transparent_58%)]" />
+          <div className="pointer-events-none absolute inset-0 opacity-30" style={{ backgroundImage: "linear-gradient(rgba(234,179,8,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,.10) 1px, transparent 1px)", backgroundSize: "54px 54px" }} />
+          <div className="relative z-10 mx-auto w-full max-w-3xl">
+            <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full border border-gold/70 bg-black/60 shadow-[0_0_55px_rgba(234,179,8,.28)]">
+              <span className="font-display text-5xl font-black italic text-gold">K</span>
+            </div>
+            <p className="mb-3 text-xs font-black uppercase tracking-[0.45em] text-cyan-300">The ultimate live game show</p>
+            <h1 className="font-display text-4xl font-black uppercase leading-tight tracking-wider text-white drop-shadow-[0_0_24px_rgba(234,179,8,.35)] sm:text-6xl">
+              Welcome to <span className="text-gold">Kingson</span><br />Survey Show
+            </h1>
+            <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-slate-300 sm:text-lg">
+              Think fast. Guess big. Bring your team and get ready for the battle of the answers!
+            </p>
+            <button
+              type="button"
+              onClick={enterShow}
+              className="mt-10 inline-flex min-w-52 items-center justify-center gap-3 rounded-full border border-yellow-200/70 bg-gradient-to-r from-yellow-500 via-amber-300 to-yellow-600 px-12 py-5 text-xl font-black uppercase tracking-[0.22em] text-slate-950 shadow-[0_0_35px_rgba(234,179,8,.42)] transition duration-300 hover:scale-105 hover:shadow-[0_0_55px_rgba(234,179,8,.65)] active:scale-95"
+            >
+              <span>▶</span> Play
+            </button>
+            <p className="mt-5 text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500">One stage · Two teams · One champion</p>
+          </div>
+        </div>
+      )}
       <div className={stageOnly ? "flex h-screen items-center justify-center bg-background" : "mx-auto max-w-[1500px] p-3 lg:p-5"}>
         <div className={(stageOnly ? "aspect-[9/16] w-[min(100vw,56.25vh)] max-h-screen" : "mx-auto aspect-[9/16] w-full max-w-[560px]") + " relative"}>
           <Stage s={s} q={q} strikeFlash={strikeFlash} timer={timer} onReveal={(i) => act({ type: "reveal", index: i })} roundMode={roundMode} bonus={bonus} roundResult={roundResult} finalResults={finalResults} showCountdown={showCountdown} />
