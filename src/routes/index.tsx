@@ -337,6 +337,15 @@ function Game() {
     }
   };
 
+  // Automatically launch the intro once when the host game opens.
+  // Browsers may block audible autoplay until the host interacts with the page.
+  const autoIntroStartedRef = useRef(false);
+  useEffect(() => {
+    if (!hydrated || stageOnly || autoIntroStartedRef.current) return;
+    autoIntroStartedRef.current = true;
+    playShowIntro();
+  }, [hydrated, stageOnly]);
+
   const playTeamEntranceSound = (team: Team) => {
     try {
       const AudioContextClass = window.AudioContext;
