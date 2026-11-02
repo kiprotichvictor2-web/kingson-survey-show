@@ -137,6 +137,7 @@ type BonusState = { questions: BonusQuestion[]; index: number; accepted: string[
 const BONUS_STORAGE_KEY = "kingson-survey-show-bonus-v1";
 const ROUND_QUESTIONS_KEY = "kingson-survey-show-round-questions-v1";
 const RESULT_KEY = "kingson-survey-show-round-result-v1";
+const GAME_STARTED_KEY = "kingson-survey-show-game-started-v1";
 type RoundQuestions = { classic: string; double: string; triple: string };
 type RoundQuestionsByTeam = Record<Team, RoundQuestions>;
 type CountdownTarget = RoundMode | "handover";
@@ -148,6 +149,7 @@ type RoundResult = { mode: Exclude<RoundMode, "bonus">; team: Team; points: numb
 function Game() {
   const [{ s, hydrated }, dispatch] = useReducer(wrapped, null, () => ({ s: initialState(), hydrated: false }));
   const [stageOnly, setStageOnly] = useState(false);
+  const [audienceGameStarted, setAudienceGameStarted] = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(true);
   const [help, setHelp] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -175,11 +177,16 @@ function Game() {
     const isStage = new URLSearchParams(window.location.search).get("stage") === "1";
     setStageOnly(isStage);
     if (isStage) setWelcomeOpen(false);
+    const startedFlag = localStorage.getItem(GAME_STARTED_KEY) === "true";
+    setAudienceGameStarted(startedFlag);
+    if (!isStage) localStorage.setItem(GAME_STARTED_KEY, "false");
     const saved = loadState();
 
     // The audience stage tab must join the host's current match. Opening the
     // host page, however, always starts a clean match with fresh questions.
     if (!isStage) {
+      localStorage.setItem(GAME_STARTED_KEY, "false");
+      setAudienceGameStarted(false);
       const fresh = initialState(saved?.questions);
       if (saved?.teamNames) fresh.teamNames = saved.teamNames;
       const drawnIds = drawSurveyIds(fresh.questions);
@@ -259,6 +266,7 @@ function Game() {
     const syncRound = (event: StorageEvent) => { if (event.key === ROUND_KEY && event.newValue) setRoundMode(event.newValue as RoundMode); };
     const syncBonus = (event: StorageEvent) => { if (event.key === BONUS_STORAGE_KEY && event.newValue) { try { setBonus(JSON.parse(event.newValue) as BonusState); } catch { /* Ignore invalid updates. */ } } };
     const syncCountdown = (event: StorageEvent) => { if (event.key === "kingson-survey-show-countdown-v1") { try { setShowCountdown(event.newValue ? JSON.parse(event.newValue) : null); } catch { /* Ignore invalid updates. */ } } };
+    const syncGameStarted = (event: StorageEvent) => { if (event.key === GAME_STARTED_KEY) setAudienceGameStarted(event.newValue === "true"); };
     const syncResult = (event: StorageEvent) => { if (event.key === RESULT_KEY) { try { setRoundResult(event.newValue ? JSON.parse(event.newValue) as RoundResult : null); } catch { /* Ignore invalid updates. */ } } };
     const syncFinal = (event: StorageEvent) => { if (event.key === "kingson-survey-show-final-results-v1") { try { setFinalResults(event.newValue ? JSON.parse(event.newValue) as FinalResults : null); } catch { /* Ignore invalid updates. */ } } };
     window.addEventListener("storage", syncFromOtherTab);
@@ -266,6 +274,7 @@ function Game() {
     window.addEventListener("storage", syncRound);
     window.addEventListener("storage", syncBonus);
     window.addEventListener("storage", syncCountdown);
+    window.addEventListener("storage", syncGameStarted);
     window.addEventListener("storage", syncResult);
     window.addEventListener("storage", syncFinal);
     return () => {
@@ -274,6 +283,7 @@ function Game() {
       window.removeEventListener("storage", syncRound);
       window.removeEventListener("storage", syncBonus);
       window.removeEventListener("storage", syncCountdown);
+      window.removeEventListener("storage", syncGameStarted);
       window.removeEventListener("storage", syncResult);
       window.removeEventListener("storage", syncFinal);
     };
@@ -370,6 +380,8 @@ function Game() {
     localStorage.setItem("kingson-survey-show-countdown-v1", JSON.stringify(next));
   };
   const playNow = () => {
+    setAudienceGameStarted(true);
+    localStorage.setItem(GAME_STARTED_KEY, "true");
     roundStartScoresRef.current = { ...s.scores };
     setRoundResult(null);
     setFinalResults(null);
@@ -936,7 +948,7 @@ function Game() {
       )}
       <div className={stageOnly ? "flex h-screen items-center justify-center bg-background" : "mx-auto max-w-[1500px] p-3 lg:p-5"}>
         <div className={(stageOnly ? "aspect-[9/16] w-[min(100vw,56.25vh)] max-h-screen" : "mx-auto aspect-[9/16] w-full max-w-[560px]") + " relative"}>
-          <Stage s={s} q={q} strikeFlash={strikeFlash} timer={timer} onReveal={(i) => act({ type: "reveal", index: i })} roundMode={roundMode} bonus={bonus} roundResult={roundResult} finalResults={finalResults} showCountdown={showCountdown} />
+          <Stage audienceWaiting={stageOnly && !audienceGameStarted} s={s} q={q} strikeFlash={strikeFlash} timer={timer} onReveal={(i) => act({ type: "reveal", index: i })} roundMode={roundMode} bonus={bonus} roundResult={roundResult} finalResults={finalResults} showCountdown={showCountdown} />
           {showCountdown && showCountdown.target !== "handover" && <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm"><div className="font-display text-[min(24vw,24cqh)] font-black leading-none text-gold drop-shadow-[0_0_35px_rgba(245,190,82,.7)]">{showCountdown.remaining}</div><div className="mt-3 font-display text-[min(4vw,4cqh)] tracking-[.3em] text-white">{showCountdown.target === "bonus" ? "GET READY FOR THE KINGSON BONUS ROUND" : "GET READY!"}</div></div>}
         </div>
         {stageOnly ? (
@@ -981,7 +993,7 @@ function Game() {
           <p className="text-muted-foreground">Both team scores go back to 0 and all questions become unused. Your edited questions are kept.</p>
           <div className="mt-5 flex justify-end gap-2">
             <button className={btnGhost} onClick={() => setConfirmNew(false)}>Cancel</button>
-            <button className={btnDanger} onClick={() => { const fresh = reducer(s, { type: "newMatch" }); const drawnIds = drawSurveyIds(fresh.questions); const assignments: RoundQuestionsByTeam = { A: { classic: drawnIds[0] ?? fresh.currentId, double: drawnIds[1] ?? fresh.currentId, triple: drawnIds[2] ?? fresh.currentId }, B: { classic: drawnIds[3] ?? fresh.currentId, double: drawnIds[4] ?? fresh.currentId, triple: drawnIds[5] ?? fresh.currentId } }; const started = reducer({ ...fresh, usedIds: [] }, { type: "next", id: assignments.A.classic }); dispatch({ type: "__load", s: started }); setRoundQuestions(assignments); localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments)); setTeamLeg(1); setFinalResults(null); localStorage.removeItem("kingson-survey-show-final-results-v1"); setRoundPoints({ A: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 }, B: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 } }); setAutoPlay(false); setRoundResult(null); setShowCountdown(null); setRoundMode("classic"); localStorage.setItem(ROUND_KEY, "classic"); const freshBonus = { ...bonus, questions: drawBonusQuestions(), index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0 }; setBonus(freshBonus); localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus)); setTimer({ duration: 60, remaining: 60, running: false, endsAt: null }); localStorage.setItem(TIMER_KEY, JSON.stringify({ duration: 60, remaining: 60, running: false, endsAt: null })); setConfirmNew(false); }}>Yes, new match</button>
+            <button className={btnDanger} onClick={() => { const fresh = reducer(s, { type: "newMatch" }); const drawnIds = drawSurveyIds(fresh.questions); const assignments: RoundQuestionsByTeam = { A: { classic: drawnIds[0] ?? fresh.currentId, double: drawnIds[1] ?? fresh.currentId, triple: drawnIds[2] ?? fresh.currentId }, B: { classic: drawnIds[3] ?? fresh.currentId, double: drawnIds[4] ?? fresh.currentId, triple: drawnIds[5] ?? fresh.currentId } }; const started = reducer({ ...fresh, usedIds: [] }, { type: "next", id: assignments.A.classic }); dispatch({ type: "__load", s: started }); setRoundQuestions(assignments); localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments)); setTeamLeg(1); setFinalResults(null); localStorage.setItem(GAME_STARTED_KEY, "false"); setAudienceGameStarted(false); localStorage.removeItem("kingson-survey-show-final-results-v1"); setRoundPoints({ A: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 }, B: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 } }); setAutoPlay(false); setRoundResult(null); setShowCountdown(null); setRoundMode("classic"); localStorage.setItem(ROUND_KEY, "classic"); const freshBonus = { ...bonus, questions: drawBonusQuestions(), index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0 }; setBonus(freshBonus); localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus)); setTimer({ duration: 60, remaining: 60, running: false, endsAt: null }); localStorage.setItem(TIMER_KEY, JSON.stringify({ duration: 60, remaining: 60, running: false, endsAt: null })); setConfirmNew(false); }}>Yes, new match</button>
           </div>
         </Modal>
       )}
@@ -1004,7 +1016,7 @@ function LionCrest({ className = "" }: { className?: string }) {
 
 /* ---------------- STAGE ---------------- */
 
-function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResult, finalResults, showCountdown }: { s: GameState; q: Question; strikeFlash: number; timer: TimerState; onReveal: (i: number) => void; roundMode: RoundMode; bonus: BonusState; roundResult: RoundResult | null; finalResults: FinalResults | null; showCountdown: { remaining: number; target: CountdownTarget } | null }) {
+function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResult, finalResults, showCountdown }: { audienceWaiting: boolean; s: GameState; q: Question; strikeFlash: number; timer: TimerState; onReveal: (i: number) => void; roundMode: RoundMode; bonus: BonusState; roundResult: RoundResult | null; finalResults: FinalResults | null; showCountdown: { remaining: number; target: CountdownTarget } | null }) {
   const [flash, setFlash] = useState(false);
   useEffect(() => {
     if (!strikeFlash) return;
@@ -1016,6 +1028,13 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResu
   const w = winner(s);
   return (
     <section className="stage-bg kingson-arena relative h-full w-full overflow-hidden rounded-2xl border border-border select-none" style={{ containerType: "size" }}>
+      {audienceWaiting && <div className="absolute inset-0 z-[60] flex flex-col items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_at_50%_38%,rgba(126,34,206,.45),transparent_58%),linear-gradient(145deg,#090411,#170b25_55%,#08050e)] px-6 text-center">
+        <div className="absolute inset-0 opacity-20" style={{backgroundImage:"linear-gradient(rgba(255,255,255,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.08) 1px,transparent 1px)",backgroundSize:"34px 34px"}} />
+        <div className="relative z-10 mb-5 flex h-36 w-36 items-center justify-center rounded-full border-2 border-yellow-300/80 bg-black/50 shadow-[0_0_65px_rgba(168,85,247,.38)]"><LionCrest className="h-28 w-28" /></div>
+        <div className="relative z-10 font-display font-black uppercase tracking-[.12em] text-white" style={{fontSize:"clamp(2rem,7cqh,4rem)",lineHeight:1.08}}>GET READY<br/><span className="gold-text">FOR THE GAME!</span></div>
+        <div className="relative z-10 mt-5 max-w-[85%] font-display uppercase tracking-[.16em] text-purple-200" style={{fontSize:"clamp(.8rem,2.5cqh,1.2rem)"}}>Kingson Survey Show is about to begin</div>
+        <div className="relative z-10 mt-8 flex items-center gap-2 text-yellow-200/80" style={{fontSize:"clamp(.65rem,2cqh,.9rem)"}}><span className="h-2 w-2 animate-pulse rounded-full bg-yellow-300"/> STAY TUNED</div>
+      </div>
       <style>{`
 @keyframes ks-drift{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(2%,-3%,0) scale(1.08)}}
 @keyframes ks-sweep{0%{transform:translateX(-120%) rotate(18deg);opacity:0}15%{opacity:.6}100%{transform:translateX(240%) rotate(18deg);opacity:0}}
