@@ -869,7 +869,7 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResu
                     </div>;
                   })}
                 </div>
-                <div className="mt-[1.5cqh] text-muted-foreground" style={{fontSize:"2.3cqh"}}>{bonus.responses?.every(Boolean) ? "BONUS ROUND COMPLETE · " + bonus.correctCount + "/5 CORRECT" : "THE HOST IS CHECKING YOUR ANSWER"}</div>
+                <div className="mt-[1.5cqh] text-muted-foreground" style={{fontSize:"2.3cqh"}}>{bonus.responses?.every(Boolean) ? "BONUS ROUND COMPLETE · " + bonus.correctCount + "/5 CORRECT" + (bonus.correctCount >= 3 ? " · +500 BONUS POINTS" : "") : "THE HOST IS CHECKING YOUR ANSWER"}</div>
               </div>
             ) : <>
             <div className="mb-[1.5cqh] flex items-center justify-center gap-[1cqw]">
@@ -1103,7 +1103,7 @@ function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, o
           <input className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2" value={bonus.questions[bonus.index].prompt} onChange={e=>{const questions=[...bonus.questions];questions[bonus.index]={...questions[bonus.index],prompt:e.target.value};onBonusChange({...bonus,questions});}} />
           <label className="mt-3 block text-xs font-bold uppercase text-muted-foreground">Private accepted answers · edit these before the show</label>
           <div className="mt-1 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            {bonus.questions[bonus.index].answers.map((answer,i)=><div key={i} className="flex min-w-0 gap-1"><input aria-label={"Bonus accepted answer "+(i+1)} className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-2 text-sm" value={answer.text} onChange={e=>{const questions=[...bonus.questions];const answers=[...questions[bonus.index].answers];answers[i]={...answer,text:e.target.value};questions[bonus.index]={...questions[bonus.index],answers};onBonusChange({...bonus,questions});}} /><input aria-label={"Bonus points "+(i+1)} type="number" min={1} max={200} className="w-16 rounded-md border border-input bg-card px-1 py-2 text-sm" value={answer.points} onChange={e=>{const questions=[...bonus.questions];const answers=[...questions[bonus.index].answers];answers[i]={...answer,points:Math.max(1,Number(e.target.value)||1)};questions[bonus.index]={...questions[bonus.index],answers};onBonusChange({...bonus,questions});}} /></div>)}
+            {bonus.questions[bonus.index].answers.map((answer,i)=><div key={i} className="flex min-w-0 gap-1"><input aria-label={"Bonus accepted answer "+(i+1)} className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-2 text-sm" value={answer.text} onChange={e=>{const questions=[...bonus.questions];const answers=[...questions[bonus.index].answers];answers[i]={...answer,text:e.target.value};questions[bonus.index]={...questions[bonus.index],answers};onBonusChange({...bonus,questions});}} /><span className="flex w-16 items-center justify-center rounded-md border border-border bg-card px-1 py-2 text-sm font-semibold text-gold">{answer.points}</span></div>)}
           </div>
           <p className={"mt-2 text-xs font-semibold " + (bonus.questions[bonus.index].answers.reduce((sum,a)=>sum+a.points,0)===200?"text-gold":"text-destructive")}>Answer points total: {bonus.questions[bonus.index].answers.reduce((sum,a)=>sum+a.points,0)} / 200</p>
           <div className="mt-4 flex flex-wrap gap-2">
