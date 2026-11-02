@@ -36,6 +36,8 @@ const btnGold = `${btn} bg-primary text-primary-foreground hover:brightness-110`
 const btnBlue = `${btn} bg-secondary text-secondary-foreground hover:brightness-110`;
 const btnGhost = `${btn} border border-border bg-muted text-foreground hover:bg-card`;
 const btnDanger = `${btn} bg-destructive text-destructive-foreground hover:brightness-110`;
+type TimerState = { duration: number; remaining: number; running: boolean };
+const TIMER_KEY = "kingson-survey-show-timer-v1";
 
 function Game() {
   const [{ s, hydrated }, dispatch] = useReducer(wrapped, null, () => ({ s: initialState(), hydrated: false }));
@@ -44,11 +46,13 @@ function Game() {
   const [editing, setEditing] = useState(false);
   const [confirmNew, setConfirmNew] = useState(false);
   const [strikeFlash, setStrikeFlash] = useState(0);
+  const [timer, setTimer] = useState<TimerState>({ duration: 30, remaining: 30, running: false });
 
   useEffect(() => {
     const saved = loadState();
     dispatch({ type: "__load", s: saved ?? initialState() });
     setStageOnly(new URLSearchParams(window.location.search).get("stage") === "1");
+    try { const savedTimer = localStorage.getItem(TIMER_KEY); if (savedTimer) setTimer(JSON.parse(savedTimer) as TimerState); } catch { /* Keep defaults. */ }
   }, []);
   // Synchronize the host tab and audience stage tab on the same computer.
   useEffect(() => {
@@ -61,12 +65,22 @@ function Game() {
         // Ignore invalid storage updates.
       }
     };
+    const syncTimer = (event: StorageEvent) => { if (event.key === TIMER_KEY && event.newValue) { try { setTimer(JSON.parse(event.newValue) as TimerState); } catch { /* Ignore invalid updates. */ } } };
     window.addEventListener("storage", syncFromOtherTab);
-    return () => window.removeEventListener("storage", syncFromOtherTab);
+    window.addEventListener("storage", syncTimer);
+    return () => { window.removeEventListener("storage", syncFromOtherTab); window.removeEventListener("storage", syncTimer); };
   }, []);
+  useEffect(() => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }, [s, hydrated]);
+  useEffect(() => { if (!stageOnly) localStorage.setItem(TIMER_KEY, JSON.stringify(timer)); }, [timer, stageOnly]);
   useEffect(() => {
-    if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
-  }, [s, hydrated]);
+    if (!timer.running || stageOnly) return;
+    const interval = window.setInterval(() => setTimer((current) => {
+      if (!current.running) return current;
+      const remaining = Math.max(0, current.remaining - 1);
+      return { ...current, remaining, running: remaining > 0 };
+    }), 1000);
+    return () => window.clearInterval(interval);
+  }, [timer.running, stageOnly]);
 
   const act = (a: Action) => {
     if (a.type === "strike" && s.phase !== "awarded") {
@@ -108,7 +122,7 @@ function Game() {
     <main className="min-h-screen bg-background text-foreground">
       <div className={stageOnly ? "flex h-screen items-center justify-center bg-background" : "mx-auto max-w-[1500px] p-3 lg:p-5"}>
         <div className={stageOnly ? "aspect-video w-full max-h-screen max-w-[calc(100vh*16/9)]" : "aspect-video w-full"}>
-          <Stage s={s} q={q} strikeFlash={strikeFlash} onReveal={(i) => act({ type: "reveal", index: i })} />
+          <Stage s={s} q={q} strikeFlash={strikeFlash} timer={timer} onReveal={(i) => act({ type: "reveal", index: i })} />
         </div>
         {stageOnly ? (
           <button onClick={() => setStageOnly(false)} className="fixed bottom-2 right-2 rounded bg-muted/40 px-2 py-1 text-xs text-muted-foreground opacity-30 hover:opacity-100">
@@ -119,6 +133,8 @@ function Game() {
             s={s}
             q={q}
             act={act}
+            timer={timer}
+            onTimerChange={setTimer}
             onStage={() => window.open(`${window.location.pathname}?stage=1`, "_blank", "noopener,noreferrer")}
             onHelp={() => setHelp(true)}
             onEdit={() => setEditing(true)}
@@ -150,7 +166,7 @@ function Game() {
 
 /* ---------------- STAGE ---------------- */
 
-function Stage({ s, q, strikeFlash, onReveal }: { s: GameState; q: Question; strikeFlash: number; onReveal: (i: number) => void }) {
+function Stage({ s, q, strikeFlash, timer, onReveal }: { s: GameState; q: Question; strikeFlash: number; timer: TimerState; onReveal: (i: number) => void }) {
   const [flash, setFlash] = useState(false);
   useEffect(() => {
     if (!strikeFlash) return;
@@ -173,6 +189,7 @@ function Stage({ s, q, strikeFlash, onReveal }: { s: GameState; q: Question; str
           </div>
           <div className="flex items-center gap-[1.5cqw] font-display text-muted-foreground" style={{ fontSize: "2.6cqh" }}>
             <span>ROUND {s.round}</span>
+            <span className={timer.remaining <= 5 && timer.running ? "text-destructive" : "text-gold"}>TIME {timer.remaining}s</span>
             {s.phase === "steal" && <span className="pop rounded-md bg-destructive px-[1cqw] text-destructive-foreground">STEAL! {s.teamNames[s.active]}</span>}
           </div>
         </div>
@@ -269,8 +286,8 @@ function Podium({ s, team }: { s: GameState; team: Team }) {
 
 /* ---------------- HOST ---------------- */
 
-function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch }: {
-  s: GameState; q: Question; act: (a: Action) => void; onStage: () => void; onHelp: () => void; onEdit: () => void; onNewMatch: () => void;
+function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, onNewMatch }: {
+  s: GameState; q: Question; act: (a: Action) => void; timer: TimerState; onTimerChange: (timer: TimerState) => void; onStage: () => void; onHelp: () => void; onEdit: () => void; onNewMatch: () => void;
 }) {
   const unused = s.questions.filter((x) => !s.usedIds.includes(x.id)).length;
   return (
@@ -283,6 +300,17 @@ function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch }: {
         </div>
       </div>
 
+      <div className="mb-4 rounded-xl border border-gold/50 bg-muted p-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div><h3 className="font-display text-lg text-gold">ROUND COUNTDOWN</h3><p className="text-xs text-muted-foreground">The audience Stage screen updates automatically.</p></div>
+          <div className={"font-display text-3xl tabular-nums " + (timer.remaining <= 5 && timer.running ? "text-destructive" : "text-gold")}>{timer.remaining}s</div>
+          <div className="flex flex-wrap items-center gap-2">
+            {[30, 20, 15, 10].map((seconds) => <button key={seconds} className={timer.duration === seconds ? btnGold : btnGhost} onClick={() => onTimerChange({ duration: seconds, remaining: seconds, running: false })}>{seconds}s</button>)}
+            <button className={btnBlue} onClick={() => onTimerChange({ ...timer, running: !timer.running })} disabled={timer.remaining === 0}>{timer.running ? "Pause" : "Start"}</button>
+            <button className={btnGhost} onClick={() => onTimerChange({ ...timer, remaining: timer.duration, running: false })}>Reset</button>
+          </div>
+        </div>
+      </div>
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Round */}
         <div className="rounded-xl bg-muted p-3">
