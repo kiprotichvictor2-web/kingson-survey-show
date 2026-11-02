@@ -927,7 +927,7 @@ function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, o
           <p className="mt-2 text-xs text-muted-foreground">Current team: {s.teamNames[s.active]}. The audience never sees this answer key.</p>
         </div>
       )}
-      <AnswerKey s={s} q={q} act={act} />
+      {roundMode !== "bonus" && <AnswerKey s={s} q={q} act={act} />}
     </section>
   );
 }
