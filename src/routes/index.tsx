@@ -141,7 +141,7 @@ type RoundQuestions = { classic: string; double: string; triple: string };
 type RoundQuestionsByTeam = Record<Team, RoundQuestions>;
 type CountdownTarget = RoundMode | "handover";
 type TeamBreakdown = { classic: number; double: number; triple: number; bonus: number; bonusExtra: number };
-type FinalResults = { team: Team; breakdown: TeamBreakdown; total: number; finalMatch: boolean; champion: Team | "tie" | null };
+type FinalResults = { team: Team; breakdown: TeamBreakdown; total: number; finalMatch: boolean; champion: Team | "tie" | null; teams?: Record<Team, { breakdown: TeamBreakdown; total: number }> };
 type RoundResult = { mode: Exclude<RoundMode, "bonus">; team: Team; points: number; nextTarget: RoundMode; countdownSeconds: number };
 
 
@@ -344,7 +344,12 @@ function Game() {
       };
       const finalMatch = teamLeg === 2;
       const total = s.scores[team] + pointsEarned;
-      const final = { team, breakdown, total, finalMatch, champion: finalMatch ? (total > s.scores[team === "A" ? "B" : "A"] ? team : total < s.scores[team === "A" ? "B" : "A"] ? (team === "A" ? "B" : "A") : "tie") : null };
+      const opponent: Team = team === "A" ? "B" : "A";
+      const teams = finalMatch ? {
+        [team]: { breakdown, total },
+        [opponent]: { breakdown: roundPoints[opponent] ?? { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 }, total: s.scores[opponent] },
+      } as Record<Team, { breakdown: TeamBreakdown; total: number }> : undefined;
+      const final = { team, breakdown, total, finalMatch, champion: finalMatch ? (total > s.scores[opponent] ? team : total < s.scores[opponent] ? opponent : "tie") : null, ...(teams ? { teams } : {}) };
       setFinalResults(final);
       localStorage.setItem("kingson-survey-show-final-results-v1", JSON.stringify(final));
       setAutoPlay(false);
@@ -654,62 +659,44 @@ function Game() {
       if (context.state === "suspended") void context.resume();
       const now = context.currentTime;
 
-      // Bright opening theme that builds into a big game-show finish.
+      // Original royal game-show instrumental: bright melody, warm chords and a rising drum pulse.
       const melody = [
-        { frequency: 392, start: 0, duration: 0.42 },
-        { frequency: 523.25, start: 0.34, duration: 0.42 },
-        { frequency: 659.25, start: 0.68, duration: 0.42 },
-        { frequency: 783.99, start: 1.02, duration: 0.55 },
-        { frequency: 1046.5, start: 1.62, duration: 0.9 },
-      ];
-      melody.forEach(({ frequency, start, duration }) => {
-        const oscillator = context.createOscillator();
-        const gain = context.createGain();
-        oscillator.type = "triangle";
-        oscillator.frequency.setValueAtTime(frequency, now + start);
-        gain.gain.setValueAtTime(0.0001, now + start);
-        gain.gain.exponentialRampToValueAtTime(0.16, now + start + 0.025);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + start + duration);
-        oscillator.connect(gain);
-        gain.connect(context.destination);
-        oscillator.start(now + start);
-        oscillator.stop(now + start + duration + 0.02);
+        [392,0,.55],[523.25,.42,.55],[659.25,.84,.55],[783.99,1.26,.72],
+        [659.25,2.05,.42],[783.99,2.42,.42],[880,2.79,.42],[1046.5,3.18,1.05],
+        [783.99,4.35,.38],[880,4.72,.38],[1046.5,5.09,1.25],
+      ] as [number,number,number][];
+      melody.forEach(([frequency,start,duration]) => {
+        const oscillator=context.createOscillator(); const gain=context.createGain();
+        oscillator.type="triangle"; oscillator.frequency.setValueAtTime(frequency,now+start);
+        gain.gain.setValueAtTime(.0001,now+start); gain.gain.exponentialRampToValueAtTime(.105,now+start+.035);
+        gain.gain.exponentialRampToValueAtTime(.0001,now+start+duration);
+        oscillator.connect(gain); gain.connect(context.destination); oscillator.start(now+start); oscillator.stop(now+start+duration+.02);
       });
-
-      // Fast, accelerating low drum-roll pulses.
-      for (let i = 0; i < 14; i++) {
-        const start = now + 0.85 + i * (0.105 - i * 0.0045);
-        const oscillator = context.createOscillator();
-        const gain = context.createGain();
-        oscillator.type = "sine";
-        oscillator.frequency.setValueAtTime(105 - i * 2.2, start);
-        gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(0.12, start + 0.008);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.075);
-        oscillator.connect(gain);
-        gain.connect(context.destination);
-        oscillator.start(start);
-        oscillator.stop(start + 0.08);
+      // Layered royal chords give the intro a fuller, song-like sound.
+      const chords=[[261.63,329.63,392],[220,261.63,329.63],[174.61,220,261.63],[196,246.94,293.66]];
+      chords.forEach((chord,ci)=>chord.forEach((frequency)=>{
+        const start=now+ci*1.45+.08; const oscillator=context.createOscillator(); const gain=context.createGain();
+        oscillator.type="sine"; oscillator.frequency.setValueAtTime(frequency,start);
+        gain.gain.setValueAtTime(.0001,start); gain.gain.exponentialRampToValueAtTime(.045,start+.12);
+        gain.gain.exponentialRampToValueAtTime(.0001,start+1.32);
+        oscillator.connect(gain); gain.connect(context.destination); oscillator.start(start); oscillator.stop(start+1.34);
+      }));
+      // A steady cinematic low pulse builds toward the final flourish.
+      for(let i=0;i<18;i++){
+        const start=now+.25+i*.31; const oscillator=context.createOscillator(); const gain=context.createGain();
+        oscillator.type="sine"; oscillator.frequency.setValueAtTime(i>12?82:65,start);
+        gain.gain.setValueAtTime(.0001,start); gain.gain.exponentialRampToValueAtTime(i>12?.12:.075,start+.012);
+        gain.gain.exponentialRampToValueAtTime(.0001,start+.16);
+        oscillator.connect(gain); gain.connect(context.destination); oscillator.start(start); oscillator.stop(start+.17);
       }
-
-      // Final triumphant chord.
-      [392, 493.88, 587.33, 783.99].forEach((frequency) => {
-        const start = now + 2.55;
-        const oscillator = context.createOscillator();
-        const gain = context.createGain();
-        oscillator.type = "triangle";
-        oscillator.frequency.setValueAtTime(frequency, start);
-        gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(0.17, start + 0.06);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + 1.25);
-        oscillator.connect(gain);
-        gain.connect(context.destination);
-        oscillator.start(start);
-        oscillator.stop(start + 1.28);
+      [392,493.88,587.33,783.99,987.77].forEach((frequency)=>{
+        const start=now+6.05; const oscillator=context.createOscillator(); const gain=context.createGain();
+        oscillator.type="triangle"; oscillator.frequency.setValueAtTime(frequency,start);
+        gain.gain.setValueAtTime(.0001,start); gain.gain.exponentialRampToValueAtTime(.14,start+.07);
+        gain.gain.exponentialRampToValueAtTime(.0001,start+1.35);
+        oscillator.connect(gain); gain.connect(context.destination); oscillator.start(start); oscillator.stop(start+1.38);
       });
-
-      // Welcome the audience after the musical finish.
-      window.setTimeout(() => playAudienceApplause(), 2850);
+      window.setTimeout(()=>playAudienceApplause(),6500);
     } catch {
       // The show can still begin if audio is unavailable.
     }
@@ -729,9 +716,9 @@ function Game() {
         announcement.pitch = 0.92;
         announcement.volume = 1;
         window.speechSynthesis.speak(announcement);
-      }, 2600);
+      }, 4200);
     }
-    window.setTimeout(() => setWelcomeOpen(false), 6500);
+    window.setTimeout(() => setWelcomeOpen(false), 8200);
   };
 
   const playTeamEntranceSound = (team: Team) => {
@@ -922,14 +909,14 @@ function Game() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       {welcomeOpen && !stageOnly && (
-        <div className="fixed inset-0 z-[100] flex min-h-screen items-center justify-center overflow-hidden bg-[#030712] px-5 py-10 text-center">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(12,74,110,0.42),transparent_58%)]" />
-          <div className="pointer-events-none absolute inset-0 opacity-30" style={{ backgroundImage: "linear-gradient(rgba(234,179,8,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,.10) 1px, transparent 1px)", backgroundSize: "54px 54px" }} />
+        <div className="fixed inset-0 z-[100] flex min-h-screen items-center justify-center overflow-hidden bg-[#090411] px-5 py-10 text-center">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(91,33,132,0.48),transparent_58%)]" />
+          <div className="pointer-events-none absolute inset-0 opacity-30" style={{ backgroundImage: "linear-gradient(rgba(234,179,8,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(192,132,252,.12) 1px, transparent 1px)", backgroundSize: "54px 54px" }} />
           <div className="relative z-10 mx-auto w-full max-w-3xl">
-            <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full border border-gold/70 bg-black/60 shadow-[0_0_55px_rgba(234,179,8,.28)]">
-              <span className="font-display text-5xl font-black italic text-gold">K</span>
+            <div className="mx-auto mb-5 flex h-36 w-36 items-center justify-center rounded-full border-2 border-yellow-300/80 bg-gradient-to-br from-purple-950 via-black to-purple-900 shadow-[0_0_65px_rgba(168,85,247,.38)]">
+              <LionCrest className="h-28 w-28" />
             </div>
-            <p className="mb-3 text-xs font-black uppercase tracking-[0.45em] text-cyan-300">The ultimate live game show</p>
+            <p className="mb-3 text-xs font-black uppercase tracking-[0.45em] text-purple-200">The ultimate live game show</p>
             <h1 className="font-display text-4xl font-black uppercase leading-tight tracking-wider text-white drop-shadow-[0_0_24px_rgba(234,179,8,.35)] sm:text-6xl">
               Welcome to <span className="text-gold">Kingson</span><br />Survey Show
             </h1>
@@ -1002,6 +989,19 @@ function Game() {
   );
 }
 
+function LionCrest({ className = "" }: { className?: string }) {
+  return <svg viewBox="0 0 160 160" role="img" aria-label="Golden crowned lion mascot" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="lionGold" x1="30" y1="18" x2="130" y2="145" gradientUnits="userSpaceOnUse"><stop stopColor="#FFF1A8"/><stop offset=".38" stopColor="#F5C451"/><stop offset=".72" stopColor="#B87919"/><stop offset="1" stopColor="#FFE08A"/></linearGradient></defs>
+    <path d="M80 29 94 17 105 31 121 25 124 43 140 51 130 68 140 84 125 96 128 115 108 116 98 135 80 126 62 135 52 116 32 115 35 96 20 84 30 68 20 51 36 43 39 25 55 31 66 17 80 29Z" fill="url(#lionGold)" stroke="#FFF0B0" strokeWidth="2.5"/>
+    <path d="M49 35 56 14 68 29 80 8 92 29 105 14 111 36 80 43 49 35Z" fill="url(#lionGold)" stroke="#FFE7A0" strokeWidth="2.5"/>
+    <path d="M44 57 58 43 80 39 102 43 116 57 110 94 98 116 80 127 62 116 50 94Z" fill="#2B153C" stroke="url(#lionGold)" strokeWidth="4"/>
+    <path d="M55 66 69 61 76 68 69 73 57 72M105 66 91 61 84 68 91 73 103 72" stroke="#FFE29A" strokeWidth="4" strokeLinecap="round"/>
+    <path d="M65 86 80 78 95 86 91 98 80 104 69 98Z" fill="url(#lionGold)" stroke="#FFF0B0" strokeWidth="2"/>
+    <path d="M80 104v8M66 112q14 10 28 0" stroke="#FFE29A" strokeWidth="3" strokeLinecap="round"/>
+    <path d="M45 80 31 94 47 101M115 80 129 94 113 101" stroke="#F5C451" strokeWidth="5" strokeLinecap="round"/>
+  </svg>;
+}
+
 /* ---------------- STAGE ---------------- */
 
 function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResult, finalResults, showCountdown }: { s: GameState; q: Question; strikeFlash: number; timer: TimerState; onReveal: (i: number) => void; roundMode: RoundMode; bonus: BonusState; roundResult: RoundResult | null; finalResults: FinalResults | null; showCountdown: { remaining: number; target: CountdownTarget } | null }) {
@@ -1022,20 +1022,20 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResu
 @keyframes ks-tile-in{0%{transform:rotateX(70deg) scale(.88);opacity:.2}70%{transform:rotateX(-5deg) scale(1.02);opacity:1}100%{transform:rotateX(0) scale(1);opacity:1}}
 @keyframes ks-glow{0%,100%{box-shadow:0 0 14px rgba(245,185,66,.16)}50%{box-shadow:0 0 28px rgba(245,185,66,.4)}}
 @keyframes ks-title{0%,100%{text-shadow:0 0 10px rgba(245,185,66,.25)}50%{text-shadow:0 0 22px rgba(50,190,255,.55),0 0 34px rgba(245,185,66,.3)}}
-.kingson-arena{isolation:isolate;background:radial-gradient(ellipse at 50% 42%,rgba(14,70,91,.58),transparent 48%),radial-gradient(ellipse at 8% 8%,rgba(176,112,26,.22),transparent 34%),linear-gradient(135deg,#05070d,#101827 48%,#07090f)}
+.kingson-arena{isolation:isolate;background:radial-gradient(ellipse at 50% 42%,rgba(91,33,132,.48),transparent 48%),radial-gradient(ellipse at 8% 8%,rgba(176,112,26,.22),transparent 34%),linear-gradient(135deg,#05070d,#101827 48%,#07090f)}
 .kingson-arena:before{content:'';position:absolute;inset:0;pointer-events:none;z-index:0;opacity:.14;background-image:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px);background-size:42px 42px}
-.kingson-arena:after{content:'';position:absolute;top:-35%;bottom:-35%;left:-35%;width:20%;pointer-events:none;z-index:1;background:linear-gradient(90deg,transparent,rgba(90,205,255,.13),rgba(255,210,120,.16),transparent);filter:blur(12px);animation:ks-sweep 12s ease-in-out infinite}
+.kingson-arena:after{content:'';position:absolute;top:-35%;bottom:-35%;left:-35%;width:20%;pointer-events:none;z-index:1;background:linear-gradient(90deg,transparent,rgba(192,132,252,.16),rgba(255,210,120,.16),transparent);filter:blur(12px);animation:ks-sweep 12s ease-in-out infinite}
 .ks-orb{position:absolute;width:24cqh;aspect-ratio:1;border-radius:50%;pointer-events:none;filter:blur(34px);opacity:.17;animation:ks-drift 9s ease-in-out infinite}
 .ks-title-glow{animation:ks-title 4s ease-in-out infinite}
-.ks-question{border:1px solid rgba(245,190,82,.62);background:linear-gradient(110deg,rgba(12,19,31,.92),rgba(17,55,70,.82),rgba(29,22,39,.92));box-shadow:0 10px 35px rgba(0,0,0,.3),0 0 24px rgba(245,185,66,.11),inset 0 1px rgba(255,255,255,.12);backdrop-filter:blur(12px)}
+.ks-question{border:1px solid rgba(245,190,82,.62);background:linear-gradient(110deg,rgba(12,19,31,.92),rgba(65,32,94,.88),rgba(29,22,39,.92));box-shadow:0 10px 35px rgba(0,0,0,.3),0 0 24px rgba(245,185,66,.11),inset 0 1px rgba(255,255,255,.12);backdrop-filter:blur(12px)}
 .ks-tile{position:relative;overflow:hidden;border:1px solid rgba(245,190,82,.45);box-shadow:0 8px 18px rgba(0,0,0,.3),inset 0 1px rgba(255,255,255,.12);transition:transform .28s ease,filter .28s ease,box-shadow .28s ease;transform-style:preserve-3d}
-.ks-tile:hover:not(:disabled){transform:translateY(-3px) scale(1.015);filter:brightness(1.2);box-shadow:0 12px 28px rgba(0,0,0,.4),0 0 18px rgba(55,190,255,.2)}
-.ks-tile.tile-closed{background:linear-gradient(135deg,#17354a,#102333 55%,#172039)}
-.ks-tile.tile-open{background:linear-gradient(115deg,rgba(151,103,30,.98),rgba(44,57,68,.98) 58%,rgba(19,89,105,.98));animation:ks-tile-in .55s cubic-bezier(.2,.8,.2,1) both,ks-glow 3.2s ease-in-out infinite .55s}
-.ks-tile.tile-shown{background:linear-gradient(115deg,rgba(32,40,52,.96),rgba(18,29,43,.96));opacity:.88;animation:ks-tile-in .45s ease-out both}
+.ks-tile:hover:not(:disabled){transform:translateY(-3px) scale(1.015);filter:brightness(1.2);box-shadow:0 12px 28px rgba(0,0,0,.4),0 0 18px rgba(180,110,255,.22)}
+.ks-tile.tile-closed{background:linear-gradient(135deg,#3b1b59,#241136 55%,#31164b)}
+.ks-tile.tile-open{background:linear-gradient(115deg,rgba(151,103,30,.98),rgba(44,57,68,.98) 58%,rgba(91,45,122,.98));animation:ks-tile-in .55s cubic-bezier(.2,.8,.2,1) both,ks-glow 3.2s ease-in-out infinite .55s}
+.ks-tile.tile-shown{background:linear-gradient(115deg,rgba(48,34,64,.96),rgba(26,16,38,.96));opacity:.88;animation:ks-tile-in .45s ease-out both}
 .ks-podium{position:relative;overflow:hidden;background:linear-gradient(155deg,rgba(24,36,53,.92),rgba(7,12,22,.86));box-shadow:0 12px 30px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.08);backdrop-filter:blur(8px);transition:transform .35s ease,box-shadow .35s ease}
-.ks-podium-active{transform:translateY(-3px);box-shadow:0 0 26px rgba(45,185,255,.22),0 14px 32px rgba(0,0,0,.35),inset 0 0 22px rgba(45,185,255,.08)}
-.ks-winner-screen{background:radial-gradient(ellipse at 50% 42%,rgba(25,105,125,.45),transparent 55%),rgba(3,6,13,.94);backdrop-filter:blur(14px)}
+.ks-podium-active{transform:translateY(-3px);box-shadow:0 0 26px rgba(168,85,247,.25),0 14px 32px rgba(0,0,0,.35),inset 0 0 22px rgba(168,85,247,.10)}
+.ks-winner-screen{background:radial-gradient(ellipse at 50% 42%,rgba(91,33,132,.48),transparent 55%),rgba(3,6,13,.94);backdrop-filter:blur(14px)}
 @keyframes ks-final-enter{0%{opacity:0;transform:scale(.92) translateY(18px)}100%{opacity:1;transform:scale(1) translateY(0)}}
 @keyframes ks-final-pulse{0%,100%{text-shadow:0 0 12px rgba(255,220,90,.35),0 0 26px rgba(30,190,255,.22)}50%{text-shadow:0 0 24px rgba(255,220,90,.8),0 0 48px rgba(30,190,255,.6)}}
 @keyframes ks-final-rays{0%{transform:rotate(0deg) scale(1.2)}100%{transform:rotate(360deg) scale(1.2)}}
@@ -1060,7 +1060,7 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResu
         {/* header */}
         <div className="flex items-center justify-between">
           <div className="ks-title-glow font-display tracking-wide leading-none" style={{ fontSize: "3.4cqh" }}>
-            <span className="gold-text">KINGSON</span> <span className="text-electric">SURVEY SHOW</span>
+            <LionCrest className="mr-[1cqw] inline-block h-[5cqh] w-[5cqh] align-middle" /> <span className="gold-text">KINGSON</span> <span className="text-electric">SURVEY SHOW</span>
           </div>
           <div className="flex items-center gap-[1.5cqw] font-display text-muted-foreground" style={{ fontSize: "2.6cqh" }}>
             <span>{roundMode === "bonus" ? "KINGSON BONUS ROUND" : roundMode === "triple" ? "TRIPLE POINT ROUND" : roundMode === "double" ? "DOUBLE POINT ROUND" : "CLASSIC ROUND"}</span>
@@ -1149,14 +1149,22 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResu
         <div className="ks-final-show absolute inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto px-5 py-4 text-center">
           <div className="ks-final-rays pointer-events-none absolute inset-0" />
           <div className="relative z-10 w-full max-w-4xl">
-            <div className="ks-final-kicker font-display tracking-[.28em] text-cyan-200" style={{fontSize:"3.2cqh"}}>✦ KINGSON SURVEY SHOW ✦</div>
-            <div className="ks-final-heading mt-1 font-display font-black tracking-wide text-white" style={{fontSize:"6.2cqh",lineHeight:1.05}}>{finalResults.finalMatch ? "FINAL SCOREBOARD" : "TEAM RESULTS"}</div>
-            <div className="ks-final-team mx-auto mt-2 inline-flex items-center justify-center rounded-full border-2 border-yellow-300/80 px-6 py-1 font-display text-yellow-100" style={{fontSize:"3.5cqh"}}>{s.teamNames[finalResults.team]}</div>
+            <div className="mx-auto mb-1 flex items-center justify-center"><LionCrest className="h-[7cqh] w-[7cqh]" /></div>
+            <div className="ks-final-kicker font-display tracking-[.28em] text-purple-200" style={{fontSize:"3cqh"}}>✦ KINGSON SURVEY SHOW ✦</div>
+            <div className="ks-final-heading mt-1 font-display font-black tracking-wide text-white" style={{fontSize:"5.8cqh",lineHeight:1.05}}>{finalResults.finalMatch ? "FINAL SCOREBOARD" : "TEAM RESULTS"}</div>
+            {finalResults.finalMatch && finalResults.teams ? <div className="mx-auto mt-3 grid w-full max-w-3xl grid-cols-2 gap-2">
+              {([finalResults.champion === "tie" ? finalResults.team : finalResults.champion as Team, (finalResults.champion === "tie" ? (finalResults.team === "A" ? "B" : "A") : finalResults.champion === "A" ? "B" : "A")] as Team[]).map((team,rank)=><div key={team} className={"rounded-xl border-2 px-2 py-2 "+(rank===0?"border-yellow-300 bg-yellow-400/15":"border-purple-300/60 bg-purple-950/70")}>
+                <div className="font-display text-yellow-200" style={{fontSize:"2.7cqh"}}>{finalResults.champion === "tie" ? "TIED" : rank===0?"🏆 1ST PLACE":"2ND PLACE"}</div>
+                <div className="mt-1 truncate font-display text-white" style={{fontSize:"3.5cqh"}}>{s.teamNames[team]}</div>
+                <div className="font-display font-black text-yellow-200" style={{fontSize:"5.2cqh",lineHeight:1.05}}>{finalResults.teams[team].total.toLocaleString()}</div>
+                <div className="text-white/70" style={{fontSize:"2cqh"}}>POINTS</div>
+              </div>)}
+            </div> : <div className="ks-final-team mx-auto mt-2 inline-flex items-center justify-center rounded-full border-2 border-yellow-300/80 px-6 py-1 font-display text-yellow-100" style={{fontSize:"3.5cqh"}}>{s.teamNames[finalResults.team]}</div>}
             <div className="mx-auto mt-3 grid w-full max-w-3xl grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-left">
-              {([["CLASSIC ROUND",finalResults.breakdown.classic,"#12b8e8"],["DOUBLE ROUND ×2",finalResults.breakdown.double,"#8b5cf6"],["TRIPLE ROUND ×3",finalResults.breakdown.triple,"#ec4899"],["KINGSON BONUS MISSION",finalResults.breakdown.bonus,"#f59e0b"],["500-POINT REWARD",finalResults.breakdown.bonusExtra,"#22c55e"]] as [string,number,string][]).map(([label,points,tint],index)=><div key={label} className="ks-final-row col-span-2 grid grid-cols-[1fr_auto] items-center rounded-xl border-l-4 px-4 py-1.5" style={{borderLeftColor:tint,background:`linear-gradient(100deg,${tint}38,rgba(8,12,30,.92) 72%)`,animationDelay:`${index*100}ms`}}><div className="font-display text-white" style={{fontSize:"2.9cqh"}}>{label}</div><div className="font-display font-black text-white" style={{fontSize:"3.6cqh"}}>{points.toLocaleString()} <span className="text-yellow-200" style={{fontSize:"2cqh"}}>PTS</span></div></div>)}
+              {([["CLASSIC ROUND",finalResults.breakdown.classic,"#12b8e8"],["DOUBLE ROUND ×2",finalResults.breakdown.double,"#8b5cf6"],["TRIPLE ROUND ×3",finalResults.breakdown.triple,"#ec4899"],["KINGSON BONUS MISSION",finalResults.breakdown.bonus,"#f59e0b"],["500-POINT REWARD",finalResults.breakdown.bonusExtra,"#22c55e"]] as [string,number,string][]).map(([label,points,tint],index)=><div key={label} className="ks-final-row col-span-2 grid grid-cols-[1fr_auto] items-center rounded-xl border-l-4 px-4 py-1.5" style={{borderLeftColor:tint,background:`linear-gradient(100deg,${tint}38,rgba(20,10,32,.94) 72%)`,animationDelay:`${index*100}ms`}}><div className="font-display text-white" style={{fontSize:"2.9cqh"}}>{label}</div><div className="font-display font-black text-white" style={{fontSize:"3.6cqh"}}>{points.toLocaleString()} <span className="text-yellow-200" style={{fontSize:"2cqh"}}>PTS</span></div></div>)}
               <div className="ks-final-total col-span-2 mt-1 flex items-center justify-between rounded-2xl border-2 border-yellow-300 px-5 py-2"><div className="font-display font-black text-white" style={{fontSize:"3.8cqh"}}>GRAND TOTAL</div><div className="font-display font-black text-yellow-200" style={{fontSize:"7cqh",lineHeight:1}}>{finalResults.total.toLocaleString()}</div></div>
             </div>
-            {finalResults.finalMatch ? <div className="ks-final-champion mt-3 font-display font-black text-yellow-200" style={{fontSize:"5cqh"}}>{finalResults.champion === "tie" ? "🏆 IT'S A TIE! 🏆" : "🏆 CHAMPION: " + s.teamNames[finalResults.champion as Team] + " 🏆"}</div> : <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-cyan-300/70 bg-blue-950/90 px-5 py-2 font-display text-white" style={{fontSize:"3cqh"}}>TEAM B PREPARES IN <span className="font-black text-yellow-300">{showCountdown?.target === "handover" ? showCountdown.remaining : 30}</span> SECONDS</div>}
+            {finalResults.finalMatch ? <div className="ks-final-champion mt-3 font-display font-black text-yellow-200" style={{fontSize:"5cqh"}}>{finalResults.champion === "tie" ? "🏆 IT'S A TIE! 🏆" : "🏆 CHAMPION: " + s.teamNames[finalResults.champion as Team] + " 🏆"}</div> : <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-purple-300/70 bg-purple-950/90 px-5 py-2 font-display text-white" style={{fontSize:"3cqh"}}>TEAM B PREPARES IN <span className="font-black text-yellow-300">{showCountdown?.target === "handover" ? showCountdown.remaining : 30}</span> SECONDS</div>}
           </div>
         </div>
       )}
@@ -1177,7 +1185,7 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResu
 
       {s.gameOver && (
         <div className="ks-winner-screen absolute inset-0 flex flex-col items-center justify-center text-center">
-          <div className="font-display text-electric" style={{ fontSize: "4cqh" }}>AND THE WINNER IS…</div>
+          <div className="font-display text-electric" style={{ fontSize: "4cqh" }}>THE LION CROWN GOES TO…</div>
           <div className="pop font-display gold-text mt-[2cqh]" style={{ fontSize: "14cqh", lineHeight: 1 }}>
             {w === "tie" ? "IT'S A TIE!" : s.teamNames[w]}
           </div>
