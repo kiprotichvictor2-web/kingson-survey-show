@@ -103,8 +103,8 @@ function Game() {
     if (!guess) return;
     const match = bonus.questions[bonus.index].answers.find((answer) => answerMatches(guess, answer));
     if (!match) { setBonusFeedback("Not on the answer key. No points this time."); playWrongBuzzer(); setBonusGuess(""); return; }
-    if (bonus.accepted.includes(normText(match))) { setBonusFeedback("That answer has already been scored."); setBonusGuess(""); return; }
-    updateBonus({ ...bonus, accepted: [...bonus.accepted, normText(match)], total: bonus.total + 100 });
+    if (bonus.accepted.includes(bonus.index + ":" + normText(match))) { setBonusFeedback("That answer has already been scored."); setBonusGuess(""); return; }
+    updateBonus({ ...bonus, accepted: [...bonus.accepted, bonus.index + ":" + normText(match)], total: bonus.total + 100 });
     actRef.current({ type: "adjustScore", team: s.active, delta: 100 });
     setBonusFeedback("Correct! +100 points for " + s.teamNames[s.active] + ".");
     setBonusGuess(""); playCorrectBell(); playAudienceApplause();
@@ -529,7 +529,15 @@ function Game() {
       playGrandWinnerFanfare();
       playAudienceApplause();
     }
-    dispatch(a);
+    if (a.type === "reveal" && roundMode !== "classic" && roundMode !== "bonus" && s.tiles[a.index] === "hidden" && s.phase !== "awarded") {
+      const multiplier = roundMode === "double" ? 2 : 3;
+      const extra = (q.answers[a.index]?.points ?? 0) * (multiplier - 1);
+      if (s.phase === "steal" && nextState.lastAward) {
+        dispatch({ type: "__load", s: { ...nextState, scores: { ...nextState.scores, [s.active]: nextState.scores[s.active] + extra }, lastAward: { ...nextState.lastAward, points: nextState.lastAward.points + extra } } });
+      } else {
+        dispatch({ type: "__load", s: { ...nextState, bank: nextState.bank + extra } });
+      }
+    } else dispatch(a);
   };
   const actRef = useRef(act);
   actRef.current = act;
@@ -683,7 +691,7 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus }: { s: Ga
               <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border-2 border-gold/60 bg-background/55 text-center">
                 <div className="font-display text-gold" style={{fontSize:"4cqh"}}>BONUS CHALLENGE {bonus.index + 1} / 5</div>
                 <div className="mt-[2cqh] font-display text-electric" style={{fontSize:"3cqh"}}>100 POINTS PER CORRECT ANSWER</div>
-                <div className="mt-[2cqh] font-display text-gold" style={{fontSize:"5cqh"}}>{bonus.accepted.length} ANSWERS SCORED</div>
+                <div className="mt-[2cqh] font-display text-gold" style={{fontSize:"5cqh"}}>{bonus.accepted.filter((a) => a.startsWith(bonus.index + ":")).length} ANSWERS SCORED</div>
                 <div className="mt-[1cqh] text-muted-foreground" style={{fontSize:"2.5cqh"}}>THE HOST IS CHECKING YOUR ANSWERS</div>
               </div>
             ) : <>
@@ -792,7 +800,7 @@ function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, o
           <div><h3 className="font-display text-lg text-gold">ROUND COUNTDOWN</h3><p className="text-xs text-muted-foreground">The audience Stage screen updates automatically.</p></div>
           <div className={"font-display text-3xl tabular-nums " + (timer.remaining <= 5 && timer.running ? "text-destructive" : "text-gold")}>{timer.remaining}s</div>
           <div className="flex flex-wrap items-center gap-2">
-            {[30, 20, 15, 10].map((seconds) => <button key={seconds} className={timer.duration === seconds ? btnGold : btnGhost} onClick={() => onTimerChange({ duration: seconds, remaining: seconds, running: false, endsAt: null })}>{seconds}s</button>)}
+            {[60, 30, 20, 15, 10].map((seconds) => <button key={seconds} className={timer.duration === seconds ? btnGold : btnGhost} onClick={() => onTimerChange({ duration: seconds, remaining: seconds, running: false, endsAt: null })}>{seconds}s</button>)}
             <button className={btnBlue} onClick={() => onTimerChange(timer.running ? { ...timer, running: false, endsAt: null } : { ...timer, running: true, endsAt: Date.now() + timer.remaining * 1000 })} disabled={timer.remaining === 0}>{timer.running ? "Pause" : "Start"}</button>
             <button className={btnGhost} onClick={() => onTimerChange({ ...timer, remaining: timer.duration, running: false, endsAt: null })}>Reset</button>
           </div>
@@ -901,8 +909,8 @@ function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, o
         <div className="mt-4 rounded-xl border-2 border-gold/60 bg-muted p-4">
           <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-display text-xl text-gold">KINGSON BONUS ROUND · HOST ONLY</h3><b className="text-gold">BONUS TOTAL: {bonus.total} pts</b></div>
           <div className="mt-3 flex flex-wrap gap-2">
-            {bonus.questions.map((item,i)=><button key={i} className={bonus.index===i?btnGold:btnGhost} onClick={()=>onBonusChange({...bonus,index:i,accepted:[]})}>Question {i+1}</button>)}
-            <button className={btnBlue} onClick={()=>onBonusChange({...bonus,index:(bonus.index+1)%5,accepted:[]})}>Next bonus question →</button>
+            {bonus.questions.map((item,i)=><button key={i} className={bonus.index===i?btnGold:btnGhost} onClick={()=>onBonusChange({...bonus,index:i})}>Question {i+1}</button>)}
+            <button className={btnBlue} onClick={()=>onBonusChange({...bonus,index:(bonus.index+1)%5})}>Next bonus question →</button>
             <button className={btnGhost} onClick={()=>onBonusChange({...bonus,index:0,accepted:[],total:0})}>Reset bonus round</button>
           </div>
           <label className="mt-3 block text-xs font-bold uppercase text-muted-foreground">Question shown to viewers</label>
