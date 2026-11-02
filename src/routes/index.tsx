@@ -583,14 +583,38 @@ function Stage({ s, q, strikeFlash, timer, onReveal }: { s: GameState; q: Questi
 
   const w = winner(s);
   return (
-    <section className="stage-bg relative h-full w-full overflow-hidden rounded-2xl border border-border select-none" style={{ containerType: "size" }}>
+    <section className="stage-bg kingson-arena relative h-full w-full overflow-hidden rounded-2xl border border-border select-none" style={{ containerType: "size" }}>
+      <style>{`
+@keyframes ks-drift{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(2%,-3%,0) scale(1.08)}}
+@keyframes ks-sweep{0%{transform:translateX(-120%) rotate(18deg);opacity:0}15%{opacity:.6}100%{transform:translateX(240%) rotate(18deg);opacity:0}}
+@keyframes ks-tile-in{0%{transform:rotateX(70deg) scale(.88);opacity:.2}70%{transform:rotateX(-5deg) scale(1.02);opacity:1}100%{transform:rotateX(0) scale(1);opacity:1}}
+@keyframes ks-glow{0%,100%{box-shadow:0 0 14px rgba(245,185,66,.16)}50%{box-shadow:0 0 28px rgba(245,185,66,.4)}}
+@keyframes ks-title{0%,100%{text-shadow:0 0 10px rgba(245,185,66,.25)}50%{text-shadow:0 0 22px rgba(50,190,255,.55),0 0 34px rgba(245,185,66,.3)}}
+.kingson-arena{isolation:isolate;background:radial-gradient(ellipse at 50% 42%,rgba(14,70,91,.58),transparent 48%),radial-gradient(ellipse at 8% 8%,rgba(176,112,26,.22),transparent 34%),linear-gradient(135deg,#05070d,#101827 48%,#07090f)}
+.kingson-arena:before{content:'';position:absolute;inset:0;pointer-events:none;z-index:0;opacity:.14;background-image:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px);background-size:42px 42px}
+.kingson-arena:after{content:'';position:absolute;top:-35%;bottom:-35%;left:-35%;width:20%;pointer-events:none;z-index:1;background:linear-gradient(90deg,transparent,rgba(90,205,255,.13),rgba(255,210,120,.16),transparent);filter:blur(12px);animation:ks-sweep 12s ease-in-out infinite}
+.ks-orb{position:absolute;width:24cqh;aspect-ratio:1;border-radius:50%;pointer-events:none;filter:blur(34px);opacity:.17;animation:ks-drift 9s ease-in-out infinite}
+.ks-title-glow{animation:ks-title 4s ease-in-out infinite}
+.ks-question{border:1px solid rgba(245,190,82,.62);background:linear-gradient(110deg,rgba(12,19,31,.92),rgba(17,55,70,.82),rgba(29,22,39,.92));box-shadow:0 10px 35px rgba(0,0,0,.3),0 0 24px rgba(245,185,66,.11),inset 0 1px rgba(255,255,255,.12);backdrop-filter:blur(12px)}
+.ks-tile{position:relative;overflow:hidden;border:1px solid rgba(245,190,82,.45);box-shadow:0 8px 18px rgba(0,0,0,.3),inset 0 1px rgba(255,255,255,.12);transition:transform .28s ease,filter .28s ease,box-shadow .28s ease;transform-style:preserve-3d}
+.ks-tile:hover:not(:disabled){transform:translateY(-3px) scale(1.015);filter:brightness(1.2);box-shadow:0 12px 28px rgba(0,0,0,.4),0 0 18px rgba(55,190,255,.2)}
+.ks-tile.tile-closed{background:linear-gradient(135deg,#17354a,#102333 55%,#172039)}
+.ks-tile.tile-open{background:linear-gradient(115deg,rgba(151,103,30,.98),rgba(44,57,68,.98) 58%,rgba(19,89,105,.98));animation:ks-tile-in .55s cubic-bezier(.2,.8,.2,1) both,ks-glow 3.2s ease-in-out infinite .55s}
+.ks-tile.tile-shown{background:linear-gradient(115deg,rgba(32,40,52,.96),rgba(18,29,43,.96));opacity:.88;animation:ks-tile-in .45s ease-out both}
+.ks-podium{position:relative;overflow:hidden;background:linear-gradient(155deg,rgba(24,36,53,.92),rgba(7,12,22,.86));box-shadow:0 12px 30px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.08);backdrop-filter:blur(8px);transition:transform .35s ease,box-shadow .35s ease}
+.ks-podium-active{transform:translateY(-3px);box-shadow:0 0 26px rgba(45,185,255,.22),0 14px 32px rgba(0,0,0,.35),inset 0 0 22px rgba(45,185,255,.08)}
+.ks-winner-screen{background:radial-gradient(ellipse at 50% 42%,rgba(25,105,125,.45),transparent 55%),rgba(3,6,13,.94);backdrop-filter:blur(14px)}
+@media(prefers-reduced-motion:reduce){.kingson-arena *,.kingson-arena:after{animation:none!important;transition:none!important}}
+`}</style>
+      <div className="ks-orb bg-cyan-400" style={{ top: "8%", left: "-7%" }} />
+      <div className="ks-orb bg-amber-400" style={{ bottom: "-8%", right: "-5%", animationDelay: "-4s" }} />
       <div className="spotlight pointer-events-none absolute -top-[10%] left-[8%] h-[120%] w-[30%]" />
       <div className="spotlight pointer-events-none absolute -top-[10%] right-[8%] h-[120%] w-[30%]" style={{ animationDelay: "-4.5s" }} />
 
       <div className="relative flex h-full flex-col px-[3cqw] py-[2.2cqh]">
         {/* header */}
         <div className="flex items-center justify-between">
-          <div className="font-display tracking-wide leading-none" style={{ fontSize: "3.4cqh" }}>
+          <div className="ks-title-glow font-display tracking-wide leading-none" style={{ fontSize: "3.4cqh" }}>
             <span className="gold-text">KINGSON</span> <span className="text-electric">SURVEY SHOW</span>
           </div>
           <div className="flex items-center gap-[1.5cqw] font-display text-muted-foreground" style={{ fontSize: "2.6cqh" }}>
@@ -601,7 +625,7 @@ function Stage({ s, q, strikeFlash, timer, onReveal }: { s: GameState; q: Questi
         </div>
 
         {/* question */}
-        <div className="mt-[2cqh] rounded-xl gold-frame bg-background/60 px-[2cqw] py-[1.8cqh] text-center">
+        <div className="ks-question mt-[2cqh] rounded-xl px-[2cqw] py-[1.8cqh] text-center">
           <h1 className="font-display uppercase leading-tight tracking-wide" style={{ fontSize: "4.6cqh" }}>{q.prompt}</h1>
         </div>
 
@@ -621,7 +645,7 @@ function Stage({ s, q, strikeFlash, timer, onReveal }: { s: GameState; q: Questi
                     key={`${q.id}-${i}-${t}`}
                     onClick={() => onReveal(i)}
                     disabled={t !== "hidden"}
-                    className={`flex items-center rounded-xl px-[1.5cqw] text-left ${t === "hidden" ? "tile-closed cursor-pointer hover:brightness-125" : t === "scored" ? "tile-open" : "tile-shown"}`}
+                    className={`ks-tile flex items-center rounded-xl px-[1.5cqw] text-left ${t === "hidden" ? "tile-closed cursor-pointer hover:brightness-125" : t === "scored" ? "tile-open" : "tile-shown"}`}
                     aria-label={t === "hidden" ? `Reveal answer ${i + 1}` : `${ans.text} ${ans.points}`}
                   >
                     {t === "hidden" ? (
@@ -661,7 +685,7 @@ function Stage({ s, q, strikeFlash, timer, onReveal }: { s: GameState; q: Questi
       )}
 
       {s.gameOver && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/90 text-center">
+        <div className="ks-winner-screen absolute inset-0 flex flex-col items-center justify-center text-center">
           <div className="font-display text-electric" style={{ fontSize: "4cqh" }}>AND THE WINNER IS…</div>
           <div className="pop font-display gold-text mt-[2cqh]" style={{ fontSize: "14cqh", lineHeight: 1 }}>
             {w === "tie" ? "IT'S A TIE!" : s.teamNames[w]}
@@ -680,7 +704,7 @@ function Stage({ s, q, strikeFlash, timer, onReveal }: { s: GameState; q: Questi
 function Podium({ s, team }: { s: GameState; team: Team }) {
   const active = s.active === team && !s.gameOver;
   return (
-    <div className={`flex flex-col items-center justify-center rounded-2xl border-2 bg-card/70 transition ${active ? "glow-active border-electric" : "border-border opacity-80"}`}>
+    <div className={`ks-podium flex flex-col items-center justify-center rounded-2xl border-2 ${active ? "ks-podium-active glow-active border-electric" : "border-border opacity-80"}`}>
       <div className="font-display text-center uppercase tracking-wide" style={{ fontSize: "3.4cqh" }}>{s.teamNames[team]}</div>
       <div key={s.scores[team]} className="pop font-display gold-text" style={{ fontSize: "12cqh", lineHeight: 1.1 }}>{s.scores[team]}</div>
       <div className={`mt-[1cqh] rounded-full px-[1cqw] font-display ${active ? "bg-electric text-accent-foreground" : "text-transparent"}`} style={{ fontSize: "2.2cqh" }}>
