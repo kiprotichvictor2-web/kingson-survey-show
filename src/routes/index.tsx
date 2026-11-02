@@ -1034,7 +1034,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
         <div className="relative z-10 font-display font-black uppercase tracking-[.12em] text-white" style={{fontSize:"clamp(2rem,7cqh,4rem)",lineHeight:1.08}}>GET READY<br/><span className="gold-text">FOR THE GAME!</span></div>
         <div className="relative z-10 mt-5 max-w-[85%] font-display uppercase tracking-[.16em] text-purple-200" style={{fontSize:"clamp(.8rem,2.5cqh,1.2rem)"}}>Kingson Survey Show is about to begin</div>
         <div className="relative z-10 mt-8 flex items-center gap-2 text-yellow-200/80" style={{fontSize:"clamp(.65rem,2cqh,.9rem)"}}><span className="h-2 w-2 animate-pulse rounded-full bg-yellow-300"/> STAY TUNED</div>
-      </div>
+      </div>}
       <style>{`
 @keyframes ks-drift{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(2%,-3%,0) scale(1.08)}}
 @keyframes ks-sweep{0%{transform:translateX(-120%) rotate(18deg);opacity:0}15%{opacity:.6}100%{transform:translateX(240%) rotate(18deg);opacity:0}}
