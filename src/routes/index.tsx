@@ -267,6 +267,35 @@ function Game() {
     }
   };
 
+  const playTeamEntranceSound = (team: Team) => {
+    try {
+      const AudioContextClass = window.AudioContext;
+      if (!AudioContextClass) return;
+      const context = audioContextRef.current ?? new AudioContextClass();
+      audioContextRef.current = context;
+      if (context.state === "suspended") void context.resume();
+      const now = context.currentTime;
+      // Each team gets its own short, energetic game-show entrance motif.
+      const notes = team === "A" ? [392, 587.33, 783.99] : [440, 659.25, 880];
+      notes.forEach((frequency, index) => {
+        const start = now + index * 0.11;
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = "triangle";
+        oscillator.frequency.setValueAtTime(frequency, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.16, start + 0.018);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.28);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(start);
+        oscillator.stop(start + 0.3);
+      });
+    } catch {
+      // Sound is optional; team selection must always work without audio.
+    }
+  };
+
   const playCountdownTick = (secondsLeft: number) => {
     try {
       const AudioContextClass = window.AudioContext;
@@ -334,6 +363,9 @@ function Game() {
   }, [timer.remaining, timer.running, stageOnly]);
 
   const act = (a: Action) => {
+    if (a.type === "setActive" && s.active !== a.team && !stageOnly) {
+      playTeamEntranceSound(a.team);
+    }
     if (a.type === "strike" && s.phase !== "awarded") {
       setStrikeFlash((n) => n + 1);
       playWrongBuzzer();
