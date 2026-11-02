@@ -95,6 +95,7 @@ const BONUS_DEFAULTS: BonusQuestion[] = [
   bonusQuestion("Name something people do when they are nervous.", ["Fidget","Pace around","Bite nails","Talk quickly","Take deep breaths"]),
   bonusQuestion("What might you find inside a school bag?", ["Books","Pens","Notebooks","Lunch","Water bottle"]),
   bonusQuestion("Name something people do to celebrate a birthday.", ["Eat cake","Sing","Give presents","Have a party","Take photos"]),
+  bonusQuestion("Name something people do when they hear their favorite song.", ["Sing along","Dance","Smile","Turn up the volume","Share it with a friend"]),
   bonusQuestion("What might you see at an airport?", ["Airplanes","Luggage","Passengers","Security staff","Departure screens"]),
 ];
 const BONUS_USED_KEY = "kingson-survey-show-bonus-used-v1";
