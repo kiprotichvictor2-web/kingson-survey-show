@@ -38,6 +38,19 @@ const btnGhost = `${btn} border border-border bg-muted text-foreground hover:bg-
 const btnDanger = `${btn} bg-destructive text-destructive-foreground hover:brightness-110`;
 type TimerState = { duration: number; remaining: number; running: boolean; endsAt: number | null };
 const TIMER_KEY = "kingson-survey-show-timer-v1";
+const ROUND_KEY = "kingson-survey-show-round-v1";
+type RoundMode = "classic" | "double" | "triple" | "bonus";
+type BonusQuestion = { prompt: string; answers: string[] };
+const BONUS_DEFAULTS: BonusQuestion[] = [
+  { prompt: "Name something people do when they wake up.", answers: ["Brush their teeth", "Pray", "Check their phone", "Take a shower", "Make breakfast"] },
+  { prompt: "Name something you find at a wedding.", answers: ["Cake", "Flowers", "Rings", "Music", "Dancing"] },
+  { prompt: "Name a popular social media platform.", answers: ["TikTok", "Facebook", "Instagram", "YouTube", "WhatsApp"] },
+  { prompt: "Name something people take on a trip.", answers: ["Clothes", "Phone", "Money", "Passport", "Toothbrush"] },
+  { prompt: "Name something you can find in a kitchen.", answers: ["Spoon", "Plate", "Fridge", "Cup", "Cooking pot"] },
+];
+type BonusState = { questions: BonusQuestion[]; index: number; accepted: string[]; total: number };
+const BONUS_STORAGE_KEY = "kingson-survey-show-bonus-v1";
+
 
 function Game() {
   const [{ s, hydrated }, dispatch] = useReducer(wrapped, null, () => ({ s: initialState(), hydrated: false }));
@@ -46,13 +59,19 @@ function Game() {
   const [editing, setEditing] = useState(false);
   const [confirmNew, setConfirmNew] = useState(false);
   const [strikeFlash, setStrikeFlash] = useState(0);
-  const [timer, setTimer] = useState<TimerState>({ duration: 30, remaining: 30, running: false, endsAt: null });
+  const [timer, setTimer] = useState<TimerState>({ duration: 60, remaining: 60, running: false, endsAt: null });
+  const [roundMode, setRoundMode] = useState<RoundMode>("classic");
+  const [bonus, setBonus] = useState<BonusState>({ questions: BONUS_DEFAULTS, index: 0, accepted: [], total: 0 });
+  const [bonusGuess, setBonusGuess] = useState("");
+  const [bonusFeedback, setBonusFeedback] = useState("");
 
   useEffect(() => {
     const saved = loadState();
     dispatch({ type: "__load", s: saved ?? initialState() });
     setStageOnly(new URLSearchParams(window.location.search).get("stage") === "1");
     try { const savedTimer = localStorage.getItem(TIMER_KEY); if (savedTimer) setTimer(JSON.parse(savedTimer) as TimerState); } catch { /* Keep defaults. */ }
+    try { const savedRound = localStorage.getItem(ROUND_KEY); if (savedRound) setRoundMode(savedRound as RoundMode); } catch { /* Keep default. */ }
+    try { const savedBonus = localStorage.getItem(BONUS_STORAGE_KEY); if (savedBonus) setBonus(JSON.parse(savedBonus) as BonusState); } catch { /* Keep defaults. */ }
   }, []);
   // Synchronize the host tab and audience stage tab on the same computer.
   useEffect(() => {
@@ -66,11 +85,30 @@ function Game() {
       }
     };
     const syncTimer = (event: StorageEvent) => { if (event.key === TIMER_KEY && event.newValue) { try { setTimer(JSON.parse(event.newValue) as TimerState); } catch { /* Ignore invalid updates. */ } } };
+    const syncRound = (event: StorageEvent) => { if (event.key === ROUND_KEY && event.newValue) setRoundMode(event.newValue as RoundMode); };
+    const syncBonus = (event: StorageEvent) => { if (event.key === BONUS_STORAGE_KEY && event.newValue) { try { setBonus(JSON.parse(event.newValue) as BonusState); } catch { /* Ignore invalid updates. */ } } };
     window.addEventListener("storage", syncFromOtherTab);
     window.addEventListener("storage", syncTimer);
     return () => { window.removeEventListener("storage", syncFromOtherTab); window.removeEventListener("storage", syncTimer); };
   }, []);
   useEffect(() => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }, [s, hydrated]);
+  const changeRound = (mode: RoundMode) => {
+    setRoundMode(mode); localStorage.setItem(ROUND_KEY, mode);
+    const freshTimer = { duration: 60, remaining: 60, running: false, endsAt: null };
+    setTimer(freshTimer); localStorage.setItem(TIMER_KEY, JSON.stringify(freshTimer));
+  };
+  const updateBonus = (next: BonusState) => { setBonus(next); localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(next)); };
+  const submitBonusGuess = () => {
+    const guess = bonusGuess.trim();
+    if (!guess) return;
+    const match = bonus.questions[bonus.index].answers.find((answer) => answerMatches(guess, answer));
+    if (!match) { setBonusFeedback("Not on the answer key. No points this time."); playWrongBuzzer(); setBonusGuess(""); return; }
+    if (bonus.accepted.includes(normText(match))) { setBonusFeedback("That answer has already been scored."); setBonusGuess(""); return; }
+    updateBonus({ ...bonus, accepted: [...bonus.accepted, normText(match)], total: bonus.total + 100 });
+    actRef.current({ type: "adjustScore", team: s.active, delta: 100 });
+    setBonusFeedback("Correct! +100 points for " + s.teamNames[s.active] + ".");
+    setBonusGuess(""); playCorrectBell(); playAudienceApplause();
+  };
   const updateTimer = (next: TimerState) => {
     setTimer(next);
     localStorage.setItem(TIMER_KEY, JSON.stringify(next));
@@ -527,7 +565,7 @@ function Game() {
     <main className="min-h-screen bg-background text-foreground">
       <div className={stageOnly ? "flex h-screen items-center justify-center bg-background" : "mx-auto max-w-[1500px] p-3 lg:p-5"}>
         <div className={stageOnly ? "aspect-video w-full max-h-screen max-w-[calc(100vh*16/9)]" : "aspect-video w-full"}>
-          <Stage s={s} q={q} strikeFlash={strikeFlash} timer={timer} onReveal={(i) => act({ type: "reveal", index: i })} />
+          <Stage s={s} q={q} strikeFlash={strikeFlash} timer={timer} onReveal={(i) => act({ type: "reveal", index: i })} roundMode={roundMode} bonus={bonus} />
         </div>
         {stageOnly ? (
           <button onClick={() => setStageOnly(false)} className="fixed bottom-2 right-2 rounded bg-muted/40 px-2 py-1 text-xs text-muted-foreground opacity-30 hover:opacity-100">
@@ -545,6 +583,14 @@ function Game() {
             onEdit={() => setEditing(true)}
             onNewMatch={() => setConfirmNew(true)}
             onPlayIntro={playShowIntro}
+            roundMode={roundMode}
+            onRoundChange={changeRound}
+            bonus={bonus}
+            onBonusChange={updateBonus}
+            bonusGuess={bonusGuess}
+            setBonusGuess={setBonusGuess}
+            bonusFeedback={bonusFeedback}
+            submitBonusGuess={submitBonusGuess}
           />
         )}
       </div>
@@ -572,7 +618,7 @@ function Game() {
 
 /* ---------------- STAGE ---------------- */
 
-function Stage({ s, q, strikeFlash, timer, onReveal }: { s: GameState; q: Question; strikeFlash: number; timer: TimerState; onReveal: (i: number) => void }) {
+function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus }: { s: GameState; q: Question; strikeFlash: number; timer: TimerState; onReveal: (i: number) => void; roundMode: RoundMode; bonus: BonusState }) {
   const [flash, setFlash] = useState(false);
   useEffect(() => {
     if (!strikeFlash) return;
@@ -618,7 +664,7 @@ function Stage({ s, q, strikeFlash, timer, onReveal }: { s: GameState; q: Questi
             <span className="gold-text">KINGSON</span> <span className="text-electric">SURVEY SHOW</span>
           </div>
           <div className="flex items-center gap-[1.5cqw] font-display text-muted-foreground" style={{ fontSize: "2.6cqh" }}>
-            <span>ROUND {s.round}</span>
+            <span>{roundMode === "bonus" ? "KINGSON BONUS ROUND" : roundMode === "triple" ? "TRIPLE POINT ROUND" : roundMode === "double" ? "DOUBLE POINT ROUND" : "CLASSIC ROUND"}</span>
             <span className={timer.remaining <= 5 && timer.running ? "text-destructive" : "text-gold"}>TIME {timer.remaining}s</span>
             {s.phase === "steal" && <span className="pop rounded-md bg-destructive px-[1cqw] text-destructive-foreground">STEAL! {s.teamNames[s.active]}</span>}
           </div>
@@ -626,7 +672,7 @@ function Stage({ s, q, strikeFlash, timer, onReveal }: { s: GameState; q: Questi
 
         {/* question */}
         <div className="ks-question mt-[2cqh] rounded-xl px-[2cqw] py-[1.8cqh] text-center">
-          <h1 className="font-display uppercase leading-tight tracking-wide" style={{ fontSize: "4.6cqh" }}>{q.prompt}</h1>
+          <h1 className="font-display uppercase leading-tight tracking-wide" style={{ fontSize: "4.6cqh" }}>{roundMode === "bonus" ? bonus.questions[bonus.index].prompt : q.prompt}</h1>
         </div>
 
         {/* body */}
@@ -716,8 +762,9 @@ function Podium({ s, team }: { s: GameState; team: Team }) {
 
 /* ---------------- HOST ---------------- */
 
-function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, onNewMatch, onPlayIntro }: {
+function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, onNewMatch, onPlayIntro, roundMode, onRoundChange, bonus, onBonusChange, bonusGuess, setBonusGuess, bonusFeedback, submitBonusGuess }: {
   s: GameState; q: Question; act: (a: Action) => void; timer: TimerState; onTimerChange: (timer: TimerState) => void; onStage: () => void; onHelp: () => void; onEdit: () => void; onNewMatch: () => void; onPlayIntro: () => void;
+  roundMode: RoundMode; onRoundChange: (mode: RoundMode) => void; bonus: BonusState; onBonusChange: (next: BonusState) => void; bonusGuess: string; setBonusGuess: (value: string) => void; bonusFeedback: string; submitBonusGuess: () => void;
 }) {
   const unused = s.questions.filter((x) => !s.usedIds.includes(x.id)).length;
   return (
@@ -741,6 +788,13 @@ function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, o
             <button className={btnGhost} onClick={() => onTimerChange({ ...timer, remaining: timer.duration, running: false, endsAt: null })}>Reset</button>
           </div>
         </div>
+      </div>
+      <div className="mb-4 rounded-xl border border-electric/40 bg-muted p-3">
+        <h3 className="mb-2 font-display text-lg text-gold">SHOW ROUNDS</h3>
+        <div className="flex flex-wrap gap-2">
+          {([["classic","Round 1 · Classic ×1"],["double","Round 2 · Double ×2"],["triple","Round 3 · Triple ×3"],["bonus","Kingson Bonus Round"]] as [RoundMode,string][]).map(([mode,label]) => <button key={mode} className={roundMode===mode?btnGold:btnGhost} onClick={()=>onRoundChange(mode)}>{label}</button>)}
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">{roundMode==="classic"?"Normal survey points.":roundMode==="double"?"Every correct board answer earns double points.":roundMode==="triple"?"Every correct board answer earns triple points.":"Five host-checked questions. Each accepted answer earns 100 points."}</p>
       </div>
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Round */}
@@ -834,6 +888,28 @@ function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, o
         </div>
       </div>
 
+      {roundMode === "bonus" && (
+        <div className="mt-4 rounded-xl border-2 border-gold/60 bg-muted p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-display text-xl text-gold">KINGSON BONUS ROUND · HOST ONLY</h3><b className="text-gold">BONUS TOTAL: {bonus.total} pts</b></div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {bonus.questions.map((item,i)=><button key={i} className={bonus.index===i?btnGold:btnGhost} onClick={()=>onBonusChange({...bonus,index:i,accepted:[]})}>Question {i+1}</button>)}
+            <button className={btnBlue} onClick={()=>onBonusChange({...bonus,index:(bonus.index+1)%5,accepted:[]})}>Next bonus question →</button>
+            <button className={btnGhost} onClick={()=>onBonusChange({...bonus,index:0,accepted:[],total:0})}>Reset bonus round</button>
+          </div>
+          <label className="mt-3 block text-xs font-bold uppercase text-muted-foreground">Question shown to viewers</label>
+          <input className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2" value={bonus.questions[bonus.index].prompt} onChange={e=>{const questions=[...bonus.questions];questions[bonus.index]={...questions[bonus.index],prompt:e.target.value};onBonusChange({...bonus,questions});}} />
+          <label className="mt-3 block text-xs font-bold uppercase text-muted-foreground">Private accepted answers · edit these before the show</label>
+          <div className="mt-1 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            {bonus.questions[bonus.index].answers.map((answer,i)=><input key={i} aria-label={"Bonus accepted answer "+(i+1)} className="min-w-0 rounded-md border border-input bg-card px-2 py-2 text-sm" value={answer} onChange={e=>{const questions=[...bonus.questions];const answers=[...questions[bonus.index].answers];answers[i]=e.target.value;questions[bonus.index]={...questions[bonus.index],answers};onBonusChange({...bonus,questions});}} />)}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <input className="min-w-0 flex-1 rounded-md border border-input bg-card px-3 py-2" placeholder="Type the viewer's answer…" value={bonusGuess} onChange={e=>setBonusGuess(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();submitBonusGuess();}}} />
+            <button className={btnGold} disabled={!bonusGuess.trim()} onClick={submitBonusGuess}>Check · award 100</button>
+          </div>
+          {bonusFeedback && <p className="mt-2 text-sm font-semibold text-gold">{bonusFeedback}</p>}
+          <p className="mt-2 text-xs text-muted-foreground">Current team: {s.teamNames[s.active]}. The audience never sees this answer key.</p>
+        </div>
+      )}
       <AnswerKey s={s} q={q} act={act} />
     </section>
   );
