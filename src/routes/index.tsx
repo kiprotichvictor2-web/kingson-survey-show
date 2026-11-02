@@ -40,13 +40,14 @@ type TimerState = { duration: number; remaining: number; running: boolean; endsA
 const TIMER_KEY = "kingson-survey-show-timer-v1";
 const ROUND_KEY = "kingson-survey-show-round-v1";
 type RoundMode = "classic" | "double" | "triple" | "bonus";
-type BonusQuestion = { prompt: string; answers: string[] };
+type BonusAnswer = { text: string; points: number };
+type BonusQuestion = { prompt: string; answers: BonusAnswer[] };
 const BONUS_DEFAULTS: BonusQuestion[] = [
-  { prompt: "Name something people do when they wake up.", answers: ["Brush their teeth", "Pray", "Check their phone", "Take a shower", "Make breakfast"] },
-  { prompt: "Name something you find at a wedding.", answers: ["Cake", "Flowers", "Rings", "Music", "Dancing"] },
-  { prompt: "Name a popular social media platform.", answers: ["TikTok", "Facebook", "Instagram", "YouTube", "WhatsApp"] },
-  { prompt: "Name something people take on a trip.", answers: ["Clothes", "Phone", "Money", "Passport", "Toothbrush"] },
-  { prompt: "Name something you can find in a kitchen.", answers: ["Spoon", "Plate", "Fridge", "Cup", "Cooking pot"] },
+  { prompt: "What is something many people check first thing in the morning?", answers: [{text:"Their phone",points:64},{text:"The time or alarm",points:51},{text:"The weather",points:37},{text:"Their messages",points:27},{text:"The news",points:21}] },
+  { prompt: "Name something a guest might bring when visiting a family.", answers: [{text:"Food",points:64},{text:"A gift",points:51},{text:"Drinks",points:37},{text:"Fruits",points:27},{text:"Flowers",points:21}] },
+  { prompt: "What is something people often forget when travelling?", answers: [{text:"Toothbrush",points:64},{text:"Phone charger",points:51},{text:"Passport or ID",points:37},{text:"A jacket",points:27},{text:"Medication",points:21}] },
+  { prompt: "Name something that can make a person famous.", answers: [{text:"Music or singing",points:64},{text:"Acting",points:51},{text:"Sports talent",points:37},{text:"Social media videos",points:27},{text:" inventing something",points:21}] },
+  { prompt: "What is something students worry about before an exam?", answers: [{text:"Forgetting what they studied",points:64},{text:"Failing the exam",points:51},{text:"Running out of time",points:37},{text:"Difficult questions",points:27},{text:"Arriving late",points:21}] },
 ];
 type BonusState = { questions: BonusQuestion[]; index: number; accepted: string[]; total: number; responses: string[] };
 const BONUS_STORAGE_KEY = "kingson-survey-show-bonus-v1";
@@ -99,7 +100,7 @@ function Game() {
     setStageOnly(new URLSearchParams(window.location.search).get("stage") === "1");
     try { const savedTimer = localStorage.getItem(TIMER_KEY); if (savedTimer) setTimer(JSON.parse(savedTimer) as TimerState); } catch { /* Keep defaults. */ }
     try { const savedRound = localStorage.getItem(ROUND_KEY); if (savedRound) setRoundMode(savedRound as RoundMode); } catch { /* Keep default. */ }
-    try { const savedBonus = localStorage.getItem(BONUS_STORAGE_KEY); if (savedBonus) { const parsed = JSON.parse(savedBonus) as BonusState; setBonus({ ...parsed, responses: Array.isArray(parsed.responses) ? parsed.responses : ["", "", "", "", ""] }); } } catch { /* Keep defaults. */ }
+    try { const savedBonus = localStorage.getItem(BONUS_STORAGE_KEY); if (savedBonus) { const parsed = JSON.parse(savedBonus) as BonusState; const migratedQuestions = Array.isArray(parsed.questions) ? parsed.questions.map((question, qi) => ({ ...question, answers: (question.answers as unknown[]).map((answer, ai) => typeof answer === "string" ? { text: answer, points: [64,51,37,27,21][ai] ?? 21 } : answer as BonusAnswer) })) : BONUS_DEFAULTS; setBonus({ ...parsed, questions: migratedQuestions, responses: Array.isArray(parsed.responses) ? parsed.responses : ["", "", "", "", ""] }); } } catch { /* Keep defaults. */ }
   }, []);
   // Synchronize the host tab and audience stage tab on the same computer.
   useEffect(() => {
@@ -158,20 +159,20 @@ function Game() {
       setBonusGuess("");
       return;
     }
-    const match = bonus.questions[bonus.index].answers.find((answer) => answerMatches(guess, answer));
+    const match = bonus.questions[bonus.index].answers.find((answer) => answerMatches(guess, answer.text));
     if (!match) { setBonusFeedback("Not on the answer key. No points this time."); playWrongBuzzer(); setBonusGuess(""); return; }
-    if (bonus.accepted.includes(bonus.index + ":" + normText(match))) { setBonusFeedback("That answer has already been scored."); setBonusGuess(""); return; }
+    if (bonus.accepted.includes(bonus.index + ":" + normText(match.text))) { setBonusFeedback("That answer has already been scored."); setBonusGuess(""); return; }
     const responses = [...(bonus.responses ?? ["", "", "", "", ""])];
-    responses[bonus.index] = match;
+    responses[bonus.index] = match.text;
     updateBonus({
       ...bonus,
-      accepted: [...bonus.accepted, bonus.index + ":" + normText(match)],
-      total: bonus.total + 100,
+      accepted: [...bonus.accepted, bonus.index + ":" + normText(match.text)],
+      total: bonus.total + match.points,
       responses,
       index: Math.min(bonus.index + 1, 4),
     });
-    actRef.current({ type: "adjustScore", team: s.active, delta: 100 });
-    setBonusFeedback("Correct! +100 points for " + s.teamNames[s.active] + ". " + (bonus.index < 4 ? "Next bonus question is ready." : "All five bonus questions are complete."));
+    actRef.current({ type: "adjustScore", team: s.active, delta: match.points });
+    setBonusFeedback("Correct! +" + match.points + " points for " + s.teamNames[s.active] + ". " + (bonus.index < 4 ? "Next bonus question is ready." : "All five bonus questions are complete."));
     setBonusGuess(""); playCorrectBell(); playAudienceApplause();
   };
   const updateTimer = (next: TimerState) => {
@@ -755,13 +756,14 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus }: { s: Ga
             {roundMode === "bonus" ? (
               <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border-2 border-gold/60 bg-background/55 p-[1.5cqw] text-center">
                 <div className="font-display text-gold" style={{fontSize:"3.5cqh"}}>BONUS QUESTION {bonus.index + 1} / 5</div>
-                <div className="mt-[1cqh] font-display text-electric" style={{fontSize:"2.5cqh"}}>100 POINTS PER CORRECT ANSWER</div>
+                <div className="mt-[1cqh] font-display text-electric" style={{fontSize:"2.5cqh"}}>UP TO 200 POINTS AVAILABLE</div>
                 <div className="mt-[2cqh] grid w-full grid-cols-5 gap-[1cqw]">
                   {Array.from({ length: 5 }, (_, i) => {
                     const response = bonus.responses?.[i] ?? "";
                     return <div key={i} className="flex min-h-0 flex-col items-center justify-center rounded-xl border-2 border-gold/50 bg-slate-950/65 px-[.6cqw] py-[1.2cqh]">
                       <span className="font-display text-gold" style={{fontSize:"2.2cqh"}}>{i + 1}</span>
                       <span className="mt-[.5cqh] w-full truncate font-semibold text-white" style={{fontSize:"2.2cqh"}}>{response || "＿＿＿＿"}</span>
+                      <span className="mt-[.3cqh] font-display text-gold" style={{fontSize:"2cqh"}}>{response ? "+" + (bonus.questions[i].answers.find(a => a.text === response)?.points ?? 0) : "—"}</span>
                     </div>;
                   })}
                 </div>
@@ -884,7 +886,7 @@ function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, o
         <div className="flex flex-wrap gap-2">
           {([["classic","Round 1 · Classic ×1"],["double","Round 2 · Double ×2"],["triple","Round 3 · Triple ×3"],["bonus","Kingson Bonus Round"]] as [RoundMode,string][]).map(([mode,label]) => <button key={mode} className={roundMode===mode?btnGold:btnGhost} onClick={()=>onRoundChange(mode)}>{label}</button>)}
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">{roundMode==="classic"?"Normal survey points.":roundMode==="double"?"Every correct board answer earns double points.":roundMode==="triple"?"Every correct board answer earns triple points.":"Five host-checked questions. Each accepted answer earns 100 points."}</p>
+        <p className="mt-2 text-xs text-muted-foreground">{roundMode==="classic"?"Normal survey points.":roundMode==="double"?"Every correct board answer earns double points.":roundMode==="triple"?"Every correct board answer earns triple points.":"Five host-checked questions. Each answer has a different value; five answers total 200 points."}</p>
       </div>
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Round */}
@@ -990,14 +992,15 @@ function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, o
           <input className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2" value={bonus.questions[bonus.index].prompt} onChange={e=>{const questions=[...bonus.questions];questions[bonus.index]={...questions[bonus.index],prompt:e.target.value};onBonusChange({...bonus,questions});}} />
           <label className="mt-3 block text-xs font-bold uppercase text-muted-foreground">Private accepted answers · edit these before the show</label>
           <div className="mt-1 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            {bonus.questions[bonus.index].answers.map((answer,i)=><input key={i} aria-label={"Bonus accepted answer "+(i+1)} className="min-w-0 rounded-md border border-input bg-card px-2 py-2 text-sm" value={answer} onChange={e=>{const questions=[...bonus.questions];const answers=[...questions[bonus.index].answers];answers[i]=e.target.value;questions[bonus.index]={...questions[bonus.index],answers};onBonusChange({...bonus,questions});}} />)}
+            {bonus.questions[bonus.index].answers.map((answer,i)=><div key={i} className="flex min-w-0 gap-1"><input aria-label={"Bonus accepted answer "+(i+1)} className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-2 text-sm" value={answer.text} onChange={e=>{const questions=[...bonus.questions];const answers=[...questions[bonus.index].answers];answers[i]={...answer,text:e.target.value};questions[bonus.index]={...questions[bonus.index],answers};onBonusChange({...bonus,questions});}} /><input aria-label={"Bonus points "+(i+1)} type="number" min={1} max={200} className="w-16 rounded-md border border-input bg-card px-1 py-2 text-sm" value={answer.points} onChange={e=>{const questions=[...bonus.questions];const answers=[...questions[bonus.index].answers];answers[i]={...answer,points:Math.max(1,Number(e.target.value)||1)};questions[bonus.index]={...questions[bonus.index],answers};onBonusChange({...bonus,questions});}} /></div>)}
           </div>
+          <p className={"mt-2 text-xs font-semibold " + (bonus.questions[bonus.index].answers.reduce((sum,a)=>sum+a.points,0)===200?"text-gold":"text-destructive")}>Answer points total: {bonus.questions[bonus.index].answers.reduce((sum,a)=>sum+a.points,0)} / 200</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <input className="min-w-0 flex-1 rounded-md border border-input bg-card px-3 py-2" placeholder="Type the viewer's answer…" value={bonusGuess} disabled={Boolean(bonus.responses?.[bonus.index])} onChange={e=>setBonusGuess(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();submitBonusGuess();}}} />
-            <button className={btnGold} disabled={!bonusGuess.trim() || Boolean(bonus.responses?.[bonus.index])} onClick={submitBonusGuess}>Check · award 100</button>
+            <button className={btnGold} disabled={!bonusGuess.trim() || Boolean(bonus.responses?.[bonus.index])} onClick={submitBonusGuess}>Check · award points</button>
           </div>
           {bonusFeedback && <p className="mt-2 text-sm font-semibold text-gold">{bonusFeedback}</p>}
-          <p className="mt-2 text-xs text-muted-foreground">Current team: {s.teamNames[s.active]}. The audience never sees this answer key.</p>
+          <p className="mt-2 text-xs text-muted-foreground">Current team: {s.teamNames[s.active]}. The audience never sees this answer key. Each question's five answer values should total exactly 200 points.</p>
         </div>
       )}
       {roundMode !== "bonus" && <AnswerKey s={s} q={q} act={act} />}
