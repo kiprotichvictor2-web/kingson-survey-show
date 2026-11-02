@@ -679,6 +679,14 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus }: { s: Ga
         <div className="mt-[2.5cqh] grid flex-1 grid-cols-[1fr_3.2fr_1fr] gap-[2cqw] min-h-0">
           <Podium s={s} team="A" />
           <div className="flex min-h-0 flex-col">
+            {roundMode === "bonus" ? (
+              <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border-2 border-gold/60 bg-background/55 text-center">
+                <div className="font-display text-gold" style={{fontSize:"4cqh"}}>BONUS CHALLENGE {bonus.index + 1} / 5</div>
+                <div className="mt-[2cqh] font-display text-electric" style={{fontSize:"3cqh"}}>100 POINTS PER CORRECT ANSWER</div>
+                <div className="mt-[2cqh] font-display text-gold" style={{fontSize:"5cqh"}}>{bonus.accepted.length} ANSWERS SCORED</div>
+                <div className="mt-[1cqh] text-muted-foreground" style={{fontSize:"2.5cqh"}}>THE HOST IS CHECKING YOUR ANSWERS</div>
+              </div>
+            ) : <>
             <div className="mb-[1.5cqh] flex items-center justify-center gap-[1cqw]">
               <span className="font-display text-muted-foreground" style={{ fontSize: "2.4cqh" }}>ROUND BANK</span>
               <span key={s.bank} className="pop font-display gold-text" style={{ fontSize: "5cqh", lineHeight: 1 }}>{s.bank}</span>
@@ -712,6 +720,7 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus }: { s: Ga
                 <div key={i} className={`flex aspect-square h-full items-center justify-center rounded-lg border-2 font-display ${i < s.strikes ? "pop border-destructive bg-destructive/20 text-destructive" : "border-border text-border"}`} style={{ fontSize: "7cqh", lineHeight: 1 }}>✕</div>
               ))}
             </div>
+            </>}
           </div>
           <Podium s={s} team="B" />
         </div>
