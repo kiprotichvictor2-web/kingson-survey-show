@@ -48,7 +48,7 @@ const BONUS_DEFAULTS: BonusQuestion[] = [
   { prompt: "Name something people take on a trip.", answers: ["Clothes", "Phone", "Money", "Passport", "Toothbrush"] },
   { prompt: "Name something you can find in a kitchen.", answers: ["Spoon", "Plate", "Fridge", "Cup", "Cooking pot"] },
 ];
-type BonusState = { questions: BonusQuestion[]; index: number; accepted: string[]; total: number };
+type BonusState = { questions: BonusQuestion[]; index: number; accepted: string[]; total: number; responses: string[] };
 const BONUS_STORAGE_KEY = "kingson-survey-show-bonus-v1";
 const ROUND_QUESTIONS_KEY = "kingson-survey-show-round-questions-v1";
 type RoundQuestions = { classic: string; double: string; triple: string };
@@ -64,7 +64,7 @@ function Game() {
   const [timer, setTimer] = useState<TimerState>({ duration: 60, remaining: 60, running: false, endsAt: null });
   const [roundMode, setRoundMode] = useState<RoundMode>("classic");
   const [roundQuestions, setRoundQuestions] = useState<RoundQuestions | null>(null);
-  const [bonus, setBonus] = useState<BonusState>({ questions: BONUS_DEFAULTS, index: 0, accepted: [], total: 0 });
+  const [bonus, setBonus] = useState<BonusState>({ questions: BONUS_DEFAULTS, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""] });
   const [bonusGuess, setBonusGuess] = useState("");
   const [bonusFeedback, setBonusFeedback] = useState("");
 
@@ -99,7 +99,7 @@ function Game() {
     setStageOnly(new URLSearchParams(window.location.search).get("stage") === "1");
     try { const savedTimer = localStorage.getItem(TIMER_KEY); if (savedTimer) setTimer(JSON.parse(savedTimer) as TimerState); } catch { /* Keep defaults. */ }
     try { const savedRound = localStorage.getItem(ROUND_KEY); if (savedRound) setRoundMode(savedRound as RoundMode); } catch { /* Keep default. */ }
-    try { const savedBonus = localStorage.getItem(BONUS_STORAGE_KEY); if (savedBonus) setBonus(JSON.parse(savedBonus) as BonusState); } catch { /* Keep defaults. */ }
+    try { const savedBonus = localStorage.getItem(BONUS_STORAGE_KEY); if (savedBonus) { const parsed = JSON.parse(savedBonus) as BonusState; setBonus({ ...parsed, responses: Array.isArray(parsed.responses) ? parsed.responses : ["", "", "", "", ""] }); } } catch { /* Keep defaults. */ }
   }, []);
   // Synchronize the host tab and audience stage tab on the same computer.
   useEffect(() => {
@@ -132,7 +132,7 @@ function Game() {
     setRoundMode(mode);
     localStorage.setItem(ROUND_KEY, mode);
     if (mode === "bonus") {
-      const freshBonus = { ...bonus, index: 0, accepted: [], total: 0 };
+      const freshBonus = { ...bonus, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""] };
       setBonus(freshBonus);
       localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus));
       setBonusGuess("");
@@ -149,9 +149,17 @@ function Game() {
     const match = bonus.questions[bonus.index].answers.find((answer) => answerMatches(guess, answer));
     if (!match) { setBonusFeedback("Not on the answer key. No points this time."); playWrongBuzzer(); setBonusGuess(""); return; }
     if (bonus.accepted.includes(bonus.index + ":" + normText(match))) { setBonusFeedback("That answer has already been scored."); setBonusGuess(""); return; }
-    updateBonus({ ...bonus, accepted: [...bonus.accepted, bonus.index + ":" + normText(match)], total: bonus.total + 100 });
+    const responses = [...(bonus.responses ?? ["", "", "", "", ""])];
+    responses[bonus.index] = match;
+    updateBonus({
+      ...bonus,
+      accepted: [...bonus.accepted, bonus.index + ":" + normText(match)],
+      total: bonus.total + 100,
+      responses,
+      index: Math.min(bonus.index + 1, 4),
+    });
     actRef.current({ type: "adjustScore", team: s.active, delta: 100 });
-    setBonusFeedback("Correct! +100 points for " + s.teamNames[s.active] + ".");
+    setBonusFeedback("Correct! +100 points for " + s.teamNames[s.active] + ". " + (bonus.index < 4 ? "Next bonus question is ready." : "All five bonus questions are complete."));
     setBonusGuess(""); playCorrectBell(); playAudienceApplause();
   };
   const updateTimer = (next: TimerState) => {
@@ -661,7 +669,7 @@ function Game() {
           <p className="text-muted-foreground">Both team scores go back to 0 and all questions become unused. Your edited questions are kept.</p>
           <div className="mt-5 flex justify-end gap-2">
             <button className={btnGhost} onClick={() => setConfirmNew(false)}>Cancel</button>
-            <button className={btnDanger} onClick={() => { act({ type: "newMatch" }); const assignments = { classic: s.currentId, double: "", triple: "" }; const pool = s.questions.filter((question) => question.id !== s.currentId).sort(() => Math.random() - 0.5); assignments.double = pool[0]?.id ?? s.currentId; assignments.triple = pool[1]?.id ?? pool[0]?.id ?? s.currentId; setRoundQuestions(assignments); localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments)); changeRound("classic"); setConfirmNew(false); }}>Yes, new match</button>
+            <button className={btnDanger} onClick={() => { const fresh = reducer(s, { type: "newMatch" }); act({ type: "newMatch" }); const pool = fresh.questions.filter((question) => question.id !== fresh.currentId).sort(() => Math.random() - 0.5); const assignments = { classic: fresh.currentId, double: pool[0]?.id ?? fresh.currentId, triple: pool[1]?.id ?? pool[0]?.id ?? fresh.currentId }; setRoundQuestions(assignments); localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments)); setRoundMode("classic"); localStorage.setItem(ROUND_KEY, "classic"); const freshBonus = { ...bonus, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""] }; setBonus(freshBonus); localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus)); setTimer({ duration: 60, remaining: 60, running: false, endsAt: null }); localStorage.setItem(TIMER_KEY, JSON.stringify({ duration: 60, remaining: 60, running: false, endsAt: null })); setConfirmNew(false); }}>Yes, new match</button>
           </div>
         </Modal>
       )}
@@ -733,11 +741,19 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus }: { s: Ga
           <Podium s={s} team="A" />
           <div className="flex min-h-0 flex-col">
             {roundMode === "bonus" ? (
-              <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border-2 border-gold/60 bg-background/55 text-center">
-                <div className="font-display text-gold" style={{fontSize:"4cqh"}}>BONUS CHALLENGE {bonus.index + 1} / 5</div>
-                <div className="mt-[2cqh] font-display text-electric" style={{fontSize:"3cqh"}}>100 POINTS PER CORRECT ANSWER</div>
-                <div className="mt-[2cqh] font-display text-gold" style={{fontSize:"5cqh"}}>{bonus.accepted.filter((a) => a.startsWith(bonus.index + ":")).length} ANSWERS SCORED</div>
-                <div className="mt-[1cqh] text-muted-foreground" style={{fontSize:"2.5cqh"}}>THE HOST IS CHECKING YOUR ANSWERS</div>
+              <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border-2 border-gold/60 bg-background/55 p-[1.5cqw] text-center">
+                <div className="font-display text-gold" style={{fontSize:"3.5cqh"}}>BONUS QUESTION {bonus.index + 1} / 5</div>
+                <div className="mt-[1cqh] font-display text-electric" style={{fontSize:"2.5cqh"}}>100 POINTS PER CORRECT ANSWER</div>
+                <div className="mt-[2cqh] grid w-full grid-cols-5 gap-[1cqw]">
+                  {Array.from({ length: 5 }, (_, i) => {
+                    const response = bonus.responses?.[i] ?? "";
+                    return <div key={i} className="flex min-h-0 flex-col items-center justify-center rounded-xl border-2 border-gold/50 bg-slate-950/65 px-[.6cqw] py-[1.2cqh]">
+                      <span className="font-display text-gold" style={{fontSize:"2.2cqh"}}>{i + 1}</span>
+                      <span className="mt-[.5cqh] w-full truncate font-semibold text-white" style={{fontSize:"2.2cqh"}}>{response || "＿＿＿＿"}</span>
+                    </div>;
+                  })}
+                </div>
+                <div className="mt-[1.5cqh] text-muted-foreground" style={{fontSize:"2.3cqh"}}>{bonus.index >= 4 && bonus.responses?.[4] ? "BONUS ROUND COMPLETE" : "THE HOST IS CHECKING YOUR ANSWER"}</div>
               </div>
             ) : <>
             <div className="mb-[1.5cqh] flex items-center justify-center gap-[1cqw]">
@@ -953,10 +969,10 @@ function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, o
       {roundMode === "bonus" && (
         <div className="mt-4 rounded-xl border-2 border-gold/60 bg-muted p-4">
           <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-display text-xl text-gold">KINGSON BONUS ROUND · HOST ONLY</h3><b className="text-gold">BONUS TOTAL: {bonus.total} pts</b></div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {bonus.questions.map((item,i)=><button key={i} className={bonus.index===i?btnGold:btnGhost} onClick={()=>onBonusChange({...bonus,index:i})}>Question {i+1}</button>)}
-            <button className={btnBlue} onClick={()=>onBonusChange({...bonus,index:(bonus.index+1)%5})}>Next bonus question →</button>
-            <button className={btnGhost} onClick={()=>onBonusChange({...bonus,index:0,accepted:[],total:0})}>Reset bonus round</button>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-gold">Question {Math.min(bonus.index + 1, 5)} of 5</span>
+            <span className="text-xs text-muted-foreground">A correct answer automatically opens the next question.</span>
+            <button className={btnGhost} onClick={()=>onBonusChange({...bonus,index:0,accepted:[],total:0,responses:["","","","",""]})}>Reset bonus round</button>
           </div>
           <label className="mt-3 block text-xs font-bold uppercase text-muted-foreground">Question shown to viewers</label>
           <input className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2" value={bonus.questions[bonus.index].prompt} onChange={e=>{const questions=[...bonus.questions];questions[bonus.index]={...questions[bonus.index],prompt:e.target.value};onBonusChange({...bonus,questions});}} />
