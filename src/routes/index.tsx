@@ -53,6 +53,7 @@ type BonusState = { questions: BonusQuestion[]; index: number; accepted: string[
 const BONUS_STORAGE_KEY = "kingson-survey-show-bonus-v1";
 const ROUND_QUESTIONS_KEY = "kingson-survey-show-round-questions-v1";
 type RoundQuestions = { classic: string; double: string; triple: string };
+type RoundResult = { mode: Exclude<RoundMode, "bonus">; team: Team; points: number; nextTarget: RoundMode; countdownSeconds: number };
 
 
 function Game() {
@@ -70,6 +71,8 @@ function Game() {
   const [bonusFeedback, setBonusFeedback] = useState("");
   const [showCountdown, setShowCountdown] = useState<{ remaining: number; target: RoundMode } | null>(null);
   const [autoPlay, setAutoPlay] = useState(false);
+  const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
+  const roundStartScoresRef = useRef<Record<Team, number>>({ A: 0, B: 0 });
   const transitionLockRef = useRef(false);
 
   useEffect(() => {
@@ -193,9 +196,35 @@ function Game() {
     localStorage.setItem("kingson-survey-show-countdown-v1", JSON.stringify(next));
   };
   const playNow = () => {
+    roundStartScoresRef.current = { ...s.scores };
+    setRoundResult(null);
     setAutoPlay(true);
     beginCountdown(roundMode === "bonus" ? "classic" : roundMode, 3);
   };
+  const finishMainRound = (mode: Exclude<RoundMode, "bonus">, nextTarget: RoundMode, countdownSeconds: number) => {
+    const scoringTeam = s.phase === "steal" ? s.controlTeam : s.active;
+    const settled = s.phase === "awarded" ? s : reducer(s, { type: "award", team: scoringTeam });
+    if (settled !== s) dispatch({ type: "__load", s: settled });
+    const earnedA = Math.max(0, settled.scores.A - roundStartScoresRef.current.A);
+    const earnedB = Math.max(0, settled.scores.B - roundStartScoresRef.current.B);
+    const team: Team = earnedA > earnedB ? "A" : earnedB > earnedA ? "B" : scoringTeam;
+    const points = team === "A" ? earnedA : earnedB;
+    setTimer((current) => ({ ...current, running: false, endsAt: null }));
+    localStorage.setItem(TIMER_KEY, JSON.stringify({ ...timer, running: false, endsAt: null }));
+    setRoundResult({ mode, team, points, nextTarget, countdownSeconds });
+    playRoundWinFanfare();
+    playAudienceApplause();
+  };
+  useEffect(() => {
+    if (!roundResult || stageOnly) return;
+    const timeout = window.setTimeout(() => {
+      const next = roundResult.nextTarget;
+      const seconds = roundResult.countdownSeconds;
+      setRoundResult(null);
+      beginCountdown(next, seconds);
+    }, 3000);
+    return () => window.clearTimeout(timeout);
+  }, [roundResult, stageOnly]);
   useEffect(() => {
     if (!showCountdown || stageOnly) return;
     const interval = window.setInterval(() => {
@@ -212,6 +241,7 @@ function Game() {
           setAutoPlay(false);
         } else {
           if (current.target !== roundMode) changeRound(current.target);
+          roundStartScoresRef.current = { ...stateRef.current.scores };
           const started = { duration: 60, remaining: 60, running: true, endsAt: Date.now() + 60000 };
           updateTimer(started);
         }
@@ -222,15 +252,14 @@ function Game() {
     return () => window.clearInterval(interval);
   }, [showCountdown, stageOnly, roundMode]);
   useEffect(() => {
-    if (!autoPlay || stageOnly || showCountdown || transitionLockRef.current || roundMode === "bonus") return;
+    if (!autoPlay || stageOnly || showCountdown || roundResult || transitionLockRef.current || roundMode === "bonus") return;
     const allRevealed = s.tiles.length > 0 && s.tiles.every((tile) => tile !== "hidden");
     const timeExpired = !timer.running && timer.remaining === 0;
     if (!allRevealed && !timeExpired) return;
-    updateTimer({ ...timer, running: false, endsAt: null });
-    if (roundMode === "classic") beginCountdown("double", 3);
-    else if (roundMode === "double") beginCountdown("triple", 3);
-    else if (roundMode === "triple") beginCountdown("bonus", 5);
-  }, [s.tiles, timer.running, timer.remaining, autoPlay, showCountdown, roundMode, stageOnly]);
+    if (roundMode === "classic") finishMainRound("classic", "double", 3);
+    else if (roundMode === "double") finishMainRound("double", "triple", 3);
+    else if (roundMode === "triple") finishMainRound("triple", "bonus", 5);
+  }, [s, s.tiles, timer.running, timer.remaining, autoPlay, showCountdown, roundResult, roundMode, stageOnly]);
   // Both tabs count down from the same end time, so background-tab throttling
   // cannot pause the audience display.
   useEffect(() => {
@@ -691,7 +720,7 @@ function Game() {
     <main className="min-h-screen bg-background text-foreground">
       <div className={stageOnly ? "flex h-screen items-center justify-center bg-background" : "mx-auto max-w-[1500px] p-3 lg:p-5"}>
         <div className={(stageOnly ? "aspect-video w-full max-h-screen max-w-[calc(100vh*16/9)]" : "aspect-video w-full") + " relative"}>
-          <Stage s={s} q={q} strikeFlash={strikeFlash} timer={timer} onReveal={(i) => act({ type: "reveal", index: i })} roundMode={roundMode} bonus={bonus} />
+          <Stage s={s} q={q} strikeFlash={strikeFlash} timer={timer} onReveal={(i) => act({ type: "reveal", index: i })} roundMode={roundMode} bonus={bonus} roundResult={roundResult} />
           {showCountdown && <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm"><div className="font-display text-[min(24vw,24cqh)] font-black leading-none text-gold drop-shadow-[0_0_35px_rgba(245,190,82,.7)]">{showCountdown.remaining}</div><div className="mt-3 font-display text-[min(4vw,4cqh)] tracking-[.3em] text-white">{showCountdown.target === "bonus" ? "GET READY FOR THE KINGSON BONUS ROUND" : "GET READY!"}</div></div>}
         </div>
         {stageOnly ? (
@@ -746,7 +775,7 @@ function Game() {
 
 /* ---------------- STAGE ---------------- */
 
-function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus }: { s: GameState; q: Question; strikeFlash: number; timer: TimerState; onReveal: (i: number) => void; roundMode: RoundMode; bonus: BonusState }) {
+function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResult }: { s: GameState; q: Question; strikeFlash: number; timer: TimerState; onReveal: (i: number) => void; roundMode: RoundMode; bonus: BonusState; roundResult: RoundResult | null }) {
   const [flash, setFlash] = useState(false);
   useEffect(() => {
     if (!strikeFlash) return;
@@ -870,6 +899,15 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus }: { s: Ga
         )}
       </div>
 
+      {roundResult && (
+        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/92 px-8 text-center backdrop-blur-md">
+          <div className="font-display tracking-[.25em] text-electric" style={{ fontSize: "4cqh" }}>{roundResult.mode.toUpperCase()} ROUND RESULTS</div>
+          <div className="mt-[2cqh] font-display text-white" style={{ fontSize: "5cqh" }}>{s.teamNames[roundResult.team]}</div>
+          <div className="mt-[1cqh] font-display gold-text" style={{ fontSize: "18cqh", lineHeight: 1 }}>+{roundResult.points}</div>
+          <div className="mt-[1cqh] font-display text-gold" style={{ fontSize: "3cqh" }}>{roundResult.mode === "classic" ? "NORMAL POINTS" : roundResult.mode === "double" ? "DOUBLE POINTS ×2" : "TRIPLE POINTS ×3"}</div>
+          <div className="mt-[2cqh] text-white/70" style={{ fontSize: "2.5cqh" }}>ROUND SCORE · NOT THE MATCH TOTAL</div>
+        </div>
+      )}
       {flash && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-destructive/15">
           <span className="pop font-display text-destructive" style={{ fontSize: "40cqh", lineHeight: 1, textShadow: "0 0 40px var(--destructive)" }}>✕</span>
