@@ -68,6 +68,9 @@ function Game() {
   const [bonus, setBonus] = useState<BonusState>({ questions: BONUS_DEFAULTS, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""] });
   const [bonusGuess, setBonusGuess] = useState("");
   const [bonusFeedback, setBonusFeedback] = useState("");
+  const [showCountdown, setShowCountdown] = useState<{ remaining: number; target: RoundMode } | null>(null);
+  const [autoPlay, setAutoPlay] = useState(false);
+  const transitionLockRef = useRef(false);
 
   useEffect(() => {
     const saved = loadState();
@@ -116,15 +119,18 @@ function Game() {
     const syncTimer = (event: StorageEvent) => { if (event.key === TIMER_KEY && event.newValue) { try { setTimer(JSON.parse(event.newValue) as TimerState); } catch { /* Ignore invalid updates. */ } } };
     const syncRound = (event: StorageEvent) => { if (event.key === ROUND_KEY && event.newValue) setRoundMode(event.newValue as RoundMode); };
     const syncBonus = (event: StorageEvent) => { if (event.key === BONUS_STORAGE_KEY && event.newValue) { try { setBonus(JSON.parse(event.newValue) as BonusState); } catch { /* Ignore invalid updates. */ } } };
+    const syncCountdown = (event: StorageEvent) => { if (event.key === "kingson-survey-show-countdown-v1") { try { setShowCountdown(event.newValue ? JSON.parse(event.newValue) : null); } catch { /* Ignore invalid updates. */ } } };
     window.addEventListener("storage", syncFromOtherTab);
     window.addEventListener("storage", syncTimer);
     window.addEventListener("storage", syncRound);
     window.addEventListener("storage", syncBonus);
+    window.addEventListener("storage", syncCountdown);
     return () => {
       window.removeEventListener("storage", syncFromOtherTab);
       window.removeEventListener("storage", syncTimer);
       window.removeEventListener("storage", syncRound);
       window.removeEventListener("storage", syncBonus);
+      window.removeEventListener("storage", syncCountdown);
     };
   }, []);
   useEffect(() => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }, [s, hydrated]);
@@ -179,6 +185,52 @@ function Game() {
     setTimer(next);
     localStorage.setItem(TIMER_KEY, JSON.stringify(next));
   };
+
+  const beginCountdown = (target: RoundMode, seconds: number) => {
+    transitionLockRef.current = true;
+    const next = { remaining: seconds, target };
+    setShowCountdown(next);
+    localStorage.setItem("kingson-survey-show-countdown-v1", JSON.stringify(next));
+  };
+  const playNow = () => {
+    setAutoPlay(true);
+    beginCountdown(roundMode === "bonus" ? "classic" : roundMode, 3);
+  };
+  useEffect(() => {
+    if (!showCountdown || stageOnly) return;
+    const interval = window.setInterval(() => {
+      setShowCountdown((current) => {
+        if (!current) return null;
+        if (current.remaining > 1) {
+          const next = { ...current, remaining: current.remaining - 1 };
+          localStorage.setItem("kingson-survey-show-countdown-v1", JSON.stringify(next));
+          return next;
+        }
+        localStorage.removeItem("kingson-survey-show-countdown-v1");
+        if (current.target === "bonus") {
+          changeRound("bonus");
+          setAutoPlay(false);
+        } else {
+          if (current.target !== roundMode) changeRound(current.target);
+          const started = { duration: 60, remaining: 60, running: true, endsAt: Date.now() + 60000 };
+          updateTimer(started);
+        }
+        transitionLockRef.current = false;
+        return null;
+      });
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [showCountdown, stageOnly, roundMode]);
+  useEffect(() => {
+    if (!autoPlay || stageOnly || showCountdown || transitionLockRef.current || roundMode === "bonus") return;
+    const allRevealed = s.tiles.length > 0 && s.tiles.every((tile) => tile !== "hidden");
+    const timeExpired = !timer.running && timer.remaining === 0;
+    if (!allRevealed && !timeExpired) return;
+    updateTimer({ ...timer, running: false, endsAt: null });
+    if (roundMode === "classic") beginCountdown("double", 3);
+    else if (roundMode === "double") beginCountdown("triple", 3);
+    else if (roundMode === "triple") beginCountdown("bonus", 5);
+  }, [s.tiles, timer.running, timer.remaining, autoPlay, showCountdown, roundMode, stageOnly]);
   // Both tabs count down from the same end time, so background-tab throttling
   // cannot pause the audience display.
   useEffect(() => {
@@ -638,8 +690,9 @@ function Game() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className={stageOnly ? "flex h-screen items-center justify-center bg-background" : "mx-auto max-w-[1500px] p-3 lg:p-5"}>
-        <div className={stageOnly ? "aspect-video w-full max-h-screen max-w-[calc(100vh*16/9)]" : "aspect-video w-full"}>
+        <div className={(stageOnly ? "aspect-video w-full max-h-screen max-w-[calc(100vh*16/9)]" : "aspect-video w-full") + " relative"}>
           <Stage s={s} q={q} strikeFlash={strikeFlash} timer={timer} onReveal={(i) => act({ type: "reveal", index: i })} roundMode={roundMode} bonus={bonus} />
+          {showCountdown && <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm"><div className="font-display text-[min(24vw,24cqh)] font-black leading-none text-gold drop-shadow-[0_0_35px_rgba(245,190,82,.7)]">{showCountdown.remaining}</div><div className="mt-3 font-display text-[min(4vw,4cqh)] tracking-[.3em] text-white">{showCountdown.target === "bonus" ? "GET READY FOR THE KINGSON BONUS ROUND" : "GET READY!"}</div></div>}
         </div>
         {stageOnly ? (
           <button onClick={() => setStageOnly(false)} className="fixed bottom-2 right-2 rounded bg-muted/40 px-2 py-1 text-xs text-muted-foreground opacity-30 hover:opacity-100">
@@ -657,6 +710,7 @@ function Game() {
             onEdit={() => setEditing(true)}
             onNewMatch={() => setConfirmNew(true)}
             onPlayIntro={playShowIntro}
+            onPlayNow={playNow}
             roundMode={roundMode}
             onRoundChange={changeRound}
             bonus={bonus}
@@ -854,8 +908,8 @@ function Podium({ s, team }: { s: GameState; team: Team }) {
 
 /* ---------------- HOST ---------------- */
 
-function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, onNewMatch, onPlayIntro, roundMode, onRoundChange, bonus, onBonusChange, bonusGuess, setBonusGuess, bonusFeedback, submitBonusGuess }: {
-  s: GameState; q: Question; act: (a: Action) => void; timer: TimerState; onTimerChange: (timer: TimerState) => void; onStage: () => void; onHelp: () => void; onEdit: () => void; onNewMatch: () => void; onPlayIntro: () => void;
+function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, onNewMatch, onPlayIntro, onPlayNow, roundMode, onRoundChange, bonus, onBonusChange, bonusGuess, setBonusGuess, bonusFeedback, submitBonusGuess }: {
+  s: GameState; q: Question; act: (a: Action) => void; timer: TimerState; onTimerChange: (timer: TimerState) => void; onStage: () => void; onHelp: () => void; onEdit: () => void; onNewMatch: () => void; onPlayIntro: () => void; onPlayNow: () => void;
   roundMode: RoundMode; onRoundChange: (mode: RoundMode) => void; bonus: BonusState; onBonusChange: (next: BonusState) => void; bonusGuess: string; setBonusGuess: (value: string) => void; bonusFeedback: string; submitBonusGuess: () => void;
 }) {
   const unused = s.questions.filter((x) => !s.usedIds.includes(x.id)).length;
@@ -864,7 +918,7 @@ function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, o
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-xl tracking-wide text-gold">HOST CONTROLS <span className="ml-2 font-sans text-xs font-normal text-muted-foreground">not part of the show — open Stage view in a second tab when streaming</span></h2>
         <div className="flex flex-wrap gap-2">
-          <button className={btnGold} onClick={onPlayIntro}>▶ Play show intro</button>
+          <button className={btnGold} onClick={onPlayIntro}>▶ Play show intro</button><button className={btnGold} onClick={onPlayNow}>▶ PLAY NOW</button>
           <button className={btnGhost} onClick={onHelp}>How to play (H)</button>
           <button className={btnBlue} onClick={onStage}>Stage view (S)</button>
         </div>
