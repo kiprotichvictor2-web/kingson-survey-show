@@ -117,7 +117,14 @@ function Game() {
     const syncBonus = (event: StorageEvent) => { if (event.key === BONUS_STORAGE_KEY && event.newValue) { try { setBonus(JSON.parse(event.newValue) as BonusState); } catch { /* Ignore invalid updates. */ } } };
     window.addEventListener("storage", syncFromOtherTab);
     window.addEventListener("storage", syncTimer);
-    return () => { window.removeEventListener("storage", syncFromOtherTab); window.removeEventListener("storage", syncTimer); };
+    window.addEventListener("storage", syncRound);
+    window.addEventListener("storage", syncBonus);
+    return () => {
+      window.removeEventListener("storage", syncFromOtherTab);
+      window.removeEventListener("storage", syncTimer);
+      window.removeEventListener("storage", syncRound);
+      window.removeEventListener("storage", syncBonus);
+    };
   }, []);
   useEffect(() => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }, [s, hydrated]);
   const changeRound = (mode: RoundMode) => {
@@ -146,6 +153,11 @@ function Game() {
   const submitBonusGuess = () => {
     const guess = bonusGuess.trim();
     if (!guess) return;
+    if (bonus.responses?.[bonus.index]) {
+      setBonusFeedback("This bonus question has already been answered. Move to the next question.");
+      setBonusGuess("");
+      return;
+    }
     const match = bonus.questions[bonus.index].answers.find((answer) => answerMatches(guess, answer));
     if (!match) { setBonusFeedback("Not on the answer key. No points this time."); playWrongBuzzer(); setBonusGuess(""); return; }
     if (bonus.accepted.includes(bonus.index + ":" + normText(match))) { setBonusFeedback("That answer has already been scored."); setBonusGuess(""); return; }
@@ -981,8 +993,8 @@ function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, o
             {bonus.questions[bonus.index].answers.map((answer,i)=><input key={i} aria-label={"Bonus accepted answer "+(i+1)} className="min-w-0 rounded-md border border-input bg-card px-2 py-2 text-sm" value={answer} onChange={e=>{const questions=[...bonus.questions];const answers=[...questions[bonus.index].answers];answers[i]=e.target.value;questions[bonus.index]={...questions[bonus.index],answers};onBonusChange({...bonus,questions});}} />)}
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <input className="min-w-0 flex-1 rounded-md border border-input bg-card px-3 py-2" placeholder="Type the viewer's answer…" value={bonusGuess} onChange={e=>setBonusGuess(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();submitBonusGuess();}}} />
-            <button className={btnGold} disabled={!bonusGuess.trim()} onClick={submitBonusGuess}>Check · award 100</button>
+            <input className="min-w-0 flex-1 rounded-md border border-input bg-card px-3 py-2" placeholder="Type the viewer's answer…" value={bonusGuess} disabled={Boolean(bonus.responses?.[bonus.index])} onChange={e=>setBonusGuess(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();submitBonusGuess();}}} />
+            <button className={btnGold} disabled={!bonusGuess.trim() || Boolean(bonus.responses?.[bonus.index])} onClick={submitBonusGuess}>Check · award 100</button>
           </div>
           {bonusFeedback && <p className="mt-2 text-sm font-semibold text-gold">{bonusFeedback}</p>}
           <p className="mt-2 text-xs text-muted-foreground">Current team: {s.teamNames[s.active]}. The audience never sees this answer key.</p>
