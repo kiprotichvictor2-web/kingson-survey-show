@@ -115,6 +115,7 @@ function Game() {
     try { const savedTimer = localStorage.getItem(TIMER_KEY); if (savedTimer) setTimer(JSON.parse(savedTimer) as TimerState); } catch { /* Keep defaults. */ }
     try { const savedRound = localStorage.getItem(ROUND_KEY); if (savedRound) setRoundMode(savedRound as RoundMode); } catch { /* Keep default. */ }
     try { const savedResult = localStorage.getItem(RESULT_KEY); if (savedResult) setRoundResult(JSON.parse(savedResult) as RoundResult); } catch { /* Keep default. */ }
+    try { const savedFinal = localStorage.getItem("kingson-survey-show-final-results-v1"); if (savedFinal) setFinalResults(JSON.parse(savedFinal) as FinalResults); } catch { /* Keep default. */ }
     try { const savedBonus = localStorage.getItem(BONUS_STORAGE_KEY); if (savedBonus) { const parsed = JSON.parse(savedBonus) as BonusState; const migratedQuestions = Array.isArray(parsed.questions) ? parsed.questions.map((question, qi) => ({ ...question, answers: (question.answers as unknown[]).map((answer, ai) => typeof answer === "string" ? { text: answer, points: [64,51,37,27,21][ai] ?? 21 } : answer as BonusAnswer) })) : BONUS_DEFAULTS; setBonus({ ...parsed, questions: migratedQuestions, responses: Array.isArray(parsed.responses) ? parsed.responses : ["", "", "", "", ""], correctCount: Number.isFinite(parsed.correctCount) ? parsed.correctCount : (Array.isArray(parsed.responses) ? parsed.responses.filter((response) => response && response !== "No answer").length : 0) }); } } catch { /* Keep defaults. */ }
   }, []);
   // Synchronize the host tab and audience stage tab on the same computer.
@@ -873,6 +874,19 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResu
 .ks-podium{position:relative;overflow:hidden;background:linear-gradient(155deg,rgba(24,36,53,.92),rgba(7,12,22,.86));box-shadow:0 12px 30px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.08);backdrop-filter:blur(8px);transition:transform .35s ease,box-shadow .35s ease}
 .ks-podium-active{transform:translateY(-3px);box-shadow:0 0 26px rgba(45,185,255,.22),0 14px 32px rgba(0,0,0,.35),inset 0 0 22px rgba(45,185,255,.08)}
 .ks-winner-screen{background:radial-gradient(ellipse at 50% 42%,rgba(25,105,125,.45),transparent 55%),rgba(3,6,13,.94);backdrop-filter:blur(14px)}
+@keyframes ks-final-enter{0%{opacity:0;transform:scale(.92) translateY(18px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes ks-final-pulse{0%,100%{text-shadow:0 0 12px rgba(255,220,90,.35),0 0 26px rgba(30,190,255,.22)}50%{text-shadow:0 0 24px rgba(255,220,90,.8),0 0 48px rgba(30,190,255,.6)}}
+@keyframes ks-final-rays{0%{transform:rotate(0deg) scale(1.2)}100%{transform:rotate(360deg) scale(1.2)}}
+@keyframes ks-final-row{0%{opacity:0;transform:translateX(-24px) scale(.97)}100%{opacity:1;transform:translateX(0) scale(1)}}
+.ks-final-show{isolation:isolate;background:radial-gradient(ellipse at 50% 0%,rgba(20,190,255,.42),transparent 48%),radial-gradient(ellipse at 5% 100%,rgba(168,85,247,.34),transparent 42%),radial-gradient(ellipse at 100% 90%,rgba(236,72,153,.28),transparent 40%),linear-gradient(135deg,#070b2b 0%,#111044 45%,#071b35 100%);overflow:hidden}
+.ks-final-rays{z-index:0;opacity:.28;background:repeating-conic-gradient(from 0deg at 50% 45%,rgba(255,255,255,.13) 0deg 2deg,transparent 2deg 12deg);animation:ks-final-rays 55s linear infinite;mask-image:radial-gradient(ellipse at center,#000 0%,transparent 75%)}
+.ks-final-kicker,.ks-final-heading,.ks-final-team,.ks-final-total,.ks-final-champion{animation:ks-final-enter .55s cubic-bezier(.2,.8,.2,1) both}
+.ks-final-heading,.ks-final-total>div:last-child{animation:ks-final-pulse 2.6s ease-in-out infinite}
+.ks-final-team{background:linear-gradient(100deg,rgba(234,179,8,.2),rgba(236,72,153,.2),rgba(14,165,233,.2));box-shadow:0 0 24px rgba(250,204,21,.2)}
+.ks-final-row{animation:ks-final-row .45s ease-out both;box-shadow:0 5px 16px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.16)}
+.ks-final-total{background:linear-gradient(100deg,rgba(234,179,8,.28),rgba(236,72,153,.18),rgba(14,165,233,.24));box-shadow:0 0 28px rgba(250,204,21,.28),inset 0 0 20px rgba(255,255,255,.06)}
+.ks-final-champion{text-shadow:0 0 22px rgba(250,204,21,.65),0 0 44px rgba(236,72,153,.35)}
+
 @media(prefers-reduced-motion:reduce){.kingson-arena *,.kingson-arena:after{animation:none!important;transition:none!important}}
 `}</style>
       <div className="ks-orb bg-cyan-400" style={{ top: "8%", left: "-7%" }} />
@@ -966,14 +980,18 @@ function Stage({ s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResu
       </div>
 
       {finalResults && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto bg-black/95 px-6 py-5 text-center backdrop-blur-lg">
-          <div className="font-display tracking-[.3em] text-electric" style={{fontSize:"3.5cqh"}}>{finalResults.finalMatch ? "KINGSON SURVEY SHOW · FINAL SCORE" : "TEAM MATCH RESULTS"}</div>
-          <div className="mt-2 font-display text-white" style={{fontSize:"5cqh"}}>{s.teamNames[finalResults.team]}</div>
-          <div className="mt-3 grid w-full max-w-3xl grid-cols-[1fr_auto] gap-x-8 gap-y-2 text-left" style={{fontSize:"3.1cqh"}}>
-            {([["CLASSIC ROUND",finalResults.breakdown.classic],["DOUBLE ROUND ×2",finalResults.breakdown.double],["TRIPLE ROUND ×3",finalResults.breakdown.triple],["KINGSON BONUS MISSION",finalResults.breakdown.bonus],["BONUS REWARD",finalResults.breakdown.bonusExtra]] as [string,number][]).map(([label,points])=><div key={label} className="contents"><div className="border-b border-white/15 py-2 text-white/80">{label}</div><div className="border-b border-white/15 py-2 text-right font-display text-gold">{points.toLocaleString()}</div></div>)}
-            <div className="pt-3 font-display text-white">TOTAL POINTS</div><div className="pt-3 text-right font-display gold-text">{finalResults.total.toLocaleString()}</div>
+        <div className="ks-final-show absolute inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto px-5 py-4 text-center">
+          <div className="ks-final-rays pointer-events-none absolute inset-0" />
+          <div className="relative z-10 w-full max-w-4xl">
+            <div className="ks-final-kicker font-display tracking-[.28em] text-cyan-200" style={{fontSize:"3.2cqh"}}>✦ KINGSON SURVEY SHOW ✦</div>
+            <div className="ks-final-heading mt-1 font-display font-black tracking-wide text-white" style={{fontSize:"6.2cqh",lineHeight:1.05}}>{finalResults.finalMatch ? "FINAL SCOREBOARD" : "TEAM RESULTS"}</div>
+            <div className="ks-final-team mx-auto mt-2 inline-flex items-center justify-center rounded-full border-2 border-yellow-300/80 px-6 py-1 font-display text-yellow-100" style={{fontSize:"3.5cqh"}}>{s.teamNames[finalResults.team]}</div>
+            <div className="mx-auto mt-3 grid w-full max-w-3xl grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-left">
+              {([["CLASSIC ROUND",finalResults.breakdown.classic,"#12b8e8"],["DOUBLE ROUND ×2",finalResults.breakdown.double,"#8b5cf6"],["TRIPLE ROUND ×3",finalResults.breakdown.triple,"#ec4899"],["KINGSON BONUS MISSION",finalResults.breakdown.bonus,"#f59e0b"],["500-POINT REWARD",finalResults.breakdown.bonusExtra,"#22c55e"]] as [string,number,string][]).map(([label,points,tint],index)=><div key={label} className="ks-final-row col-span-2 grid grid-cols-[1fr_auto] items-center rounded-xl border-l-4 px-4 py-1.5" style={{borderLeftColor:tint,background:`linear-gradient(100deg,${tint}38,rgba(8,12,30,.92) 72%)`,animationDelay:`${index*100}ms`}}><div className="font-display text-white" style={{fontSize:"2.9cqh"}}>{label}</div><div className="font-display font-black text-white" style={{fontSize:"3.6cqh"}}>{points.toLocaleString()} <span className="text-yellow-200" style={{fontSize:"2cqh"}}>PTS</span></div></div>)}
+              <div className="ks-final-total col-span-2 mt-1 flex items-center justify-between rounded-2xl border-2 border-yellow-300 px-5 py-2"><div className="font-display font-black text-white" style={{fontSize:"3.8cqh"}}>GRAND TOTAL</div><div className="font-display font-black text-yellow-200" style={{fontSize:"7cqh",lineHeight:1}}>{finalResults.total.toLocaleString()}</div></div>
+            </div>
+            {finalResults.finalMatch ? <div className="ks-final-champion mt-3 font-display font-black text-yellow-200" style={{fontSize:"5cqh"}}>{finalResults.champion === "tie" ? "🏆 IT'S A TIE! 🏆" : "🏆 CHAMPION: " + s.teamNames[finalResults.champion as Team] + " 🏆"}</div> : <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-cyan-300/70 bg-blue-950/90 px-5 py-2 font-display text-white" style={{fontSize:"3cqh"}}>TEAM B PREPARES IN <span className="font-black text-yellow-300">{showCountdown?.target === "handover" ? showCountdown.remaining : 30}</span> SECONDS</div>}
           </div>
-          {finalResults.finalMatch ? <div className="mt-4 font-display text-gold" style={{fontSize:"5cqh"}}>{finalResults.champion === "tie" ? "IT'S A TIE!" : "CHAMPION: " + s.teamNames[finalResults.champion as Team]}</div> : <div className="mt-4 font-display text-white" style={{fontSize:"3.5cqh"}}>TEAM B PREPARES IN <span className="text-gold">{showCountdown?.target === "handover" ? showCountdown.remaining : 30}</span> SECONDS</div>}
         </div>
       )}
       {roundResult && (
