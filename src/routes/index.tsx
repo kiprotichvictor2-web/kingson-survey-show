@@ -93,9 +93,23 @@ function Game() {
   }, []);
   useEffect(() => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }, [s, hydrated]);
   const changeRound = (mode: RoundMode) => {
-    setRoundMode(mode); localStorage.setItem(ROUND_KEY, mode);
+    if (mode === roundMode) return;
+    // Every round starts with a clean answer board and a fresh unused survey question.
+    // Using "next" preserves the points already banked by either team.
+    const freshGame = reducer(s, { type: "next", random: true });
+    dispatch({ type: "__load", s: freshGame });
+    setRoundMode(mode);
+    localStorage.setItem(ROUND_KEY, mode);
+    if (mode === "bonus") {
+      const freshBonus = { ...bonus, index: 0, accepted: [], total: 0 };
+      setBonus(freshBonus);
+      localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus));
+      setBonusGuess("");
+      setBonusFeedback("");
+    }
     const freshTimer = { duration: 60, remaining: 60, running: false, endsAt: null };
-    setTimer(freshTimer); localStorage.setItem(TIMER_KEY, JSON.stringify(freshTimer));
+    setTimer(freshTimer);
+    localStorage.setItem(TIMER_KEY, JSON.stringify(freshTimer));
   };
   const updateBonus = (next: BonusState) => { setBonus(next); localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(next)); };
   const submitBonusGuess = () => {
