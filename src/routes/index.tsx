@@ -275,21 +275,38 @@ function Game() {
       audioContextRef.current = context;
       if (context.state === "suspended") void context.resume();
       const now = context.currentTime;
-      // Each team gets its own short, energetic game-show entrance motif.
-      const notes = team === "A" ? [392, 587.33, 783.99] : [440, 659.25, 880];
-      notes.forEach((frequency, index) => {
-        const start = now + index * 0.11;
+      // A short, layered game-show fanfare with a melody and supporting harmony.
+      const melody = team === "A"
+        ? [523.25, 659.25, 783.99, 1046.5, 783.99]
+        : [587.33, 739.99, 880, 1174.66, 880];
+      melody.forEach((frequency, index) => {
+        const start = now + index * 0.14;
         const oscillator = context.createOscillator();
         const gain = context.createGain();
         oscillator.type = "triangle";
         oscillator.frequency.setValueAtTime(frequency, start);
         gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(0.16, start + 0.018);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.28);
+        gain.gain.exponentialRampToValueAtTime(0.13, start + 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.34);
         oscillator.connect(gain);
         gain.connect(context.destination);
         oscillator.start(start);
-        oscillator.stop(start + 0.3);
+        oscillator.stop(start + 0.36);
+      });
+      // Add a warm musical chord beneath the final note.
+      const chord = team === "A" ? [261.63, 329.63, 392] : [293.66, 369.99, 440];
+      chord.forEach((frequency) => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(frequency, now + 0.48);
+        gain.gain.setValueAtTime(0.0001, now + 0.48);
+        gain.gain.exponentialRampToValueAtTime(0.055, now + 0.54);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.15);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(now + 0.48);
+        oscillator.stop(now + 1.18);
       });
     } catch {
       // Sound is optional; team selection must always work without audio.
@@ -365,6 +382,7 @@ function Game() {
   const act = (a: Action) => {
     if (a.type === "setActive" && s.active !== a.team && !stageOnly) {
       playTeamEntranceSound(a.team);
+      playAudienceApplause();
     }
     if (a.type === "strike" && s.phase !== "awarded") {
       setStrikeFlash((n) => n + 1);
