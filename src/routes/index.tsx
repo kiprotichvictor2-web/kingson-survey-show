@@ -48,6 +48,21 @@ function Game() {
   useEffect(() => {
     const saved = loadState();
     dispatch({ type: "__load", s: saved ?? initialState() });
+    setStageOnly(new URLSearchParams(window.location.search).get("stage") === "1");
+  }, []);
+  // Synchronize the host tab and audience stage tab on the same computer.
+  useEffect(() => {
+    const syncFromOtherTab = (event: StorageEvent) => {
+      if (event.key !== STORAGE_KEY || !event.newValue) return;
+      try {
+        const next = JSON.parse(event.newValue) as GameState;
+        if (next && Array.isArray(next.questions)) dispatch({ type: "__load", s: next });
+      } catch {
+        // Ignore invalid storage updates.
+      }
+    };
+    window.addEventListener("storage", syncFromOtherTab);
+    return () => window.removeEventListener("storage", syncFromOtherTab);
   }, []);
   useEffect(() => {
     if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
@@ -97,14 +112,14 @@ function Game() {
         </div>
         {stageOnly ? (
           <button onClick={() => setStageOnly(false)} className="fixed bottom-2 right-2 rounded bg-muted/40 px-2 py-1 text-xs text-muted-foreground opacity-30 hover:opacity-100">
-            Exit stage view (Esc)
+            Exit stage view (Esc) · Host controls are in the other tab
           </button>
         ) : (
           <HostPanel
             s={s}
             q={q}
             act={act}
-            onStage={() => setStageOnly(true)}
+            onStage={() => window.open(`${window.location.pathname}?stage=1`, "_blank", "noopener,noreferrer")}
             onHelp={() => setHelp(true)}
             onEdit={() => setEditing(true)}
             onNewMatch={() => setConfirmNew(true)}
@@ -261,7 +276,7 @@ function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch }: {
   return (
     <section className="mt-4 rounded-2xl border-2 border-dashed border-border bg-card p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-display text-xl tracking-wide text-gold">HOST CONTROLS <span className="ml-2 font-sans text-xs font-normal text-muted-foreground">not part of the show — use Stage view when streaming</span></h2>
+        <h2 className="font-display text-xl tracking-wide text-gold">HOST CONTROLS <span className="ml-2 font-sans text-xs font-normal text-muted-foreground">not part of the show — open Stage view in a second tab when streaming</span></h2>
         <div className="flex gap-2">
           <button className={btnGhost} onClick={onHelp}>How to play (H)</button>
           <button className={btnBlue} onClick={onStage}>Stage view (S)</button>
