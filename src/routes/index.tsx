@@ -169,6 +169,41 @@ function Game() {
     }
   };
 
+  const playGrandWinnerFanfare = () => {
+    try {
+      const AudioContextClass = window.AudioContext;
+      if (!AudioContextClass) return;
+      const context = audioContextRef.current ?? new AudioContextClass();
+      audioContextRef.current = context;
+      if (context.state === "suspended") void context.resume();
+      const now = context.currentTime;
+      // A bold rising brass-like chord followed by a bright high note.
+      const notes = [
+        { frequency: 392, start: 0, duration: 0.72 },
+        { frequency: 493.88, start: 0, duration: 0.72 },
+        { frequency: 587.33, start: 0, duration: 0.72 },
+        { frequency: 783.99, start: 0.48, duration: 1.05 },
+        { frequency: 1046.5, start: 0.82, duration: 1.25 },
+      ];
+      notes.forEach(({ frequency, start, duration }) => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = "triangle";
+        oscillator.frequency.setValueAtTime(frequency, now + start);
+        gain.gain.setValueAtTime(0.0001, now + start);
+        gain.gain.exponentialRampToValueAtTime(0.19, now + start + 0.04);
+        gain.gain.setValueAtTime(0.19, now + start + duration * 0.55);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + start + duration);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(now + start);
+        oscillator.stop(now + start + duration + 0.03);
+      });
+    } catch {
+      // Sound is optional; the game should still work if audio is unavailable.
+    }
+  };
+
   const act = (a: Action) => {
     if (a.type === "strike" && s.phase !== "awarded") {
       setStrikeFlash((n) => n + 1);
@@ -177,6 +212,7 @@ function Game() {
     if (a.type === "reveal" && s.tiles[a.index] === "hidden") playCorrectBell();
     const nextState = reducer(s, a);
     if (s.phase !== "awarded" && nextState.phase === "awarded") playRoundWinFanfare();
+    if (a.type === "endGame" && !s.gameOver && nextState.gameOver) playGrandWinnerFanfare();
     dispatch(a);
   };
   const actRef = useRef(act);
