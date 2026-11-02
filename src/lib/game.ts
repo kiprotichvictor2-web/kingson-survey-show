@@ -197,7 +197,13 @@ export function loadState(): GameState | null {
     if (!raw) return null;
     const s = JSON.parse(raw);
     if (!s || !Array.isArray(s.questions)) return null;
-    if (s.version === 2) return s;
+    if (s.version === 2) {
+      // Preserve any host-edited questions, but always add newly shipped
+      // defaults so older browser saves grow with the survey bank.
+      const have = new Set(s.questions.map((x: Question) => x.id));
+      const questions = [...s.questions, ...structuredClone(DEFAULT_QUESTIONS.filter((x) => !have.has(x.id)))];
+      return { ...s, questions, usedIds: Array.isArray(s.usedIds) ? s.usedIds : [s.currentId] };
+    }
     if (s.version === 1) return migrateV1(s);
     return null;
   } catch {
