@@ -870,7 +870,7 @@ function Game() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className={stageOnly ? "flex h-screen items-center justify-center bg-background" : "mx-auto max-w-[1500px] p-3 lg:p-5"}>
-        <div className={(stageOnly ? "aspect-video w-full max-h-screen max-w-[calc(100vh*16/9)]" : "aspect-video w-full") + " relative"}>
+        <div className={(stageOnly ? "aspect-[9/16] w-[min(100vw,56.25vh)] max-h-screen" : "mx-auto aspect-[9/16] w-full max-w-[560px]") + " relative"}>
           <Stage s={s} q={q} strikeFlash={strikeFlash} timer={timer} onReveal={(i) => act({ type: "reveal", index: i })} roundMode={roundMode} bonus={bonus} roundResult={roundResult} finalResults={finalResults} showCountdown={showCountdown} />
           {showCountdown && showCountdown.target !== "handover" && <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm"><div className="font-display text-[min(24vw,24cqh)] font-black leading-none text-gold drop-shadow-[0_0_35px_rgba(245,190,82,.7)]">{showCountdown.remaining}</div><div className="mt-3 font-display text-[min(4vw,4cqh)] tracking-[.3em] text-white">{showCountdown.target === "bonus" ? "GET READY FOR THE KINGSON BONUS ROUND" : "GET READY!"}</div></div>}
         </div>
