@@ -135,7 +135,7 @@ export const DEFAULT_QUESTIONS: Question[] = [
   q("q123", "Name something people do on a first day at a new job", [["Meet coworkers", 24], ["Learn the rules", 21], ["Get a tour", 17], ["Set up a desk", 14], ["Meet the boss", 13], ["Feel nervous", 11]]),
   q("q124", "Name something people use to clean their house", [["Broom", 25], ["Mop", 21], ["Soap or detergent", 19], ["Vacuum cleaner", 14], ["Cloth", 12], ["Brush", 9]]),
   q("q125", "Name something you might see at a train station", [["Train", 27], ["Passengers", 21], ["Platform", 18], ["Ticket machines", 13], ["Announcements board", 11], ["Bags", 10]]),
-  q("q126", "Name something people do when they meet an old friend", [["Hug", 24], ["Catch up", 23], ["Smile", 18], [" reminisce", 13], ["Take a photo", 12], ["Exchange numbers", 10]]),
+  q("q126", "Name something people do when they meet an old friend", [["Hug", 24], ["Catch up", 23], ["Smile", 18], ["Reminisce", 13], ["Take a photo", 12], ["Exchange numbers", 10]]),
   q("q127", "Name something people do to stay organized", [["Make a list", 25], ["Use a calendar", 20], ["Set reminders", 18], ["Keep things tidy", 15], ["Plan ahead", 13], ["Use folders", 9]]),
   q("q128", "Name something you might find at a campsite", [["Tent", 26], ["Campfire", 21], ["Sleeping bag", 18], ["Torch", 13], ["Food", 12], ["Backpack", 10]]),
   q("q129", "Name something people do after making a mistake", [["Apologize", 27], ["Correct it", 22], ["Learn from it", 19], ["Explain what happened", 12], ["Ask for help", 11], ["Try again", 9]]),
