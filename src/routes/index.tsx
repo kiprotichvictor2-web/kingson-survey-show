@@ -824,9 +824,44 @@ function answerMatches(query: string, answer: string): boolean {
 
 function AnswerKey({ s, q, act }: { s: GameState; q: Question; act: (a: Action) => void }) {
   const [guess, setGuess] = useState("");
+  const [feedback, setFeedback] = useState("");
   const checking = normText(guess).length > 0;
   const hits = q.answers.map((a) => answerMatches(guess, a.text));
   const hitCount = hits.filter(Boolean).length;
+
+  const submitGuess = () => {
+    const answer = guess.trim();
+    if (!answer) return;
+
+    const matchingIndexes = q.answers
+      .map((a, i) => ({ a, i }))
+      .filter(({ a }) => answerMatches(answer, a.text))
+      .map(({ i }) => i);
+    const hiddenMatches = matchingIndexes.filter((i) => s.tiles[i] === "hidden");
+
+    if (hiddenMatches.length === 1) {
+      act({ type: "reveal", index: hiddenMatches[0] });
+      setFeedback(`Correct! “${q.answers[hiddenMatches[0]].text}” is on the board.`);
+      setGuess("");
+      return;
+    }
+
+    if (hiddenMatches.length > 1) {
+      setFeedback("This answer could match more than one tile. Please tap the correct highlighted answer.");
+      return;
+    }
+
+    if (matchingIndexes.length > 0) {
+      setFeedback("That answer is already on the board. Try another answer.");
+      setGuess("");
+      return;
+    }
+
+    act({ type: "strike" });
+    setFeedback("Not on the board — strike added.");
+    setGuess("");
+  };
+
   return (
     <div className="mt-4 rounded-xl border-2 border-dashed border-destructive/60 bg-muted/60 p-3">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -837,19 +872,40 @@ function AnswerKey({ s, q, act }: { s: GameState; q: Question; act: (a: Action) 
       </div>
 
       <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-muted-foreground" htmlFor="viewer-guess">
-        Check a viewer's answer
+        Type a viewer's answer, then press Enter
       </label>
-      <input
-        id="viewer-guess"
-        type="text"
-        value={guess}
-        onChange={(e) => setGuess(e.target.value)}
-        placeholder="Type or paste what a viewer said…"
-        className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
-      />
-      {checking && (
+      <div className="flex gap-2">
+        <input
+          id="viewer-guess"
+          type="text"
+          value={guess}
+          onChange={(e) => { setGuess(e.target.value); setFeedback(""); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              submitGuess();
+            }
+          }}
+          placeholder="Type or paste what a viewer said…"
+          className="min-w-0 flex-1 rounded-md border border-input bg-card px-3 py-2 text-sm"
+        />
+        <button
+          type="button"
+          disabled={!checking}
+          onClick={submitGuess}
+          className={btnGold}
+        >
+          Check answer
+        </button>
+      </div>
+      {feedback && (
+        <p className="mt-2 text-sm font-semibold" role="status">
+          {feedback}
+        </p>
+      )}
+      {!feedback && checking && (
         <p className="mt-1 text-xs text-muted-foreground">
-          {hitCount > 0 ? `${hitCount} likely match${hitCount > 1 ? "es" : ""} highlighted below — tap one to reveal it.` : "No close match on the board."}
+          {hitCount > 0 ? `${hitCount} possible board match${hitCount > 1 ? "es" : ""} highlighted — press Enter to check.` : "No board match found yet — press Enter to check."}
         </p>
       )}
 
@@ -881,7 +937,7 @@ function AnswerKey({ s, q, act }: { s: GameState; q: Question; act: (a: Action) 
         })}
       </ol>
       <p className="mt-2 text-xs text-muted-foreground">
-        Matching is approximate — similar wording and synonyms need your judgment. Checking never awards points; you reveal the official tile yourself.
+        Press Enter or Check answer to submit. A single match reveals automatically; an unmatched answer adds a strike. Ambiguous matches are left for you to confirm.
       </p>
     </div>
   );
