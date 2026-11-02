@@ -89,10 +89,38 @@ function Game() {
     return () => window.clearInterval(interval);
   }, [timer.running, timer.endsAt]);
 
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const playCorrectBell = () => {
+    try {
+      const AudioContextClass = window.AudioContext;
+      if (!AudioContextClass) return;
+      const context = audioContextRef.current ?? new AudioContextClass();
+      audioContextRef.current = context;
+      if (context.state === "suspended") void context.resume();
+      const now = context.currentTime;
+      [880, 1174.66].forEach((frequency, index) => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(frequency, now);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(0.16, now + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.42 + index * 0.08);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(now + index * 0.08);
+        oscillator.stop(now + 0.55 + index * 0.08);
+      });
+    } catch {
+      // Sound is optional; the game should still work if audio is unavailable.
+    }
+  };
+
   const act = (a: Action) => {
     if (a.type === "strike" && s.phase !== "awarded") {
       setStrikeFlash((n) => n + 1);
     }
+    if (a.type === "reveal" && s.tiles[a.index] === "hidden") playCorrectBell();
     dispatch(a);
   };
   const actRef = useRef(act);
