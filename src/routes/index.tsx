@@ -42,13 +42,77 @@ const ROUND_KEY = "kingson-survey-show-round-v1";
 type RoundMode = "classic" | "double" | "triple" | "bonus";
 type BonusAnswer = { text: string; points: number };
 type BonusQuestion = { prompt: string; answers: BonusAnswer[] };
+const bonusQuestion = (prompt: string, answers: [string,string,string,string,string]): BonusQuestion => ({
+  prompt, answers: answers.map((text, i) => ({ text, points: [64,51,37,27,21][i] })),
+});
+// A separate, large bonus bank. These prompts are not reused from the regular survey bank.
 const BONUS_DEFAULTS: BonusQuestion[] = [
-  { prompt: "What is something many people check first thing in the morning?", answers: [{text:"Their phone",points:64},{text:"The time or alarm",points:51},{text:"The weather",points:37},{text:"Their messages",points:27},{text:"The news",points:21}] },
-  { prompt: "Name something a guest might bring when visiting a family.", answers: [{text:"Food",points:64},{text:"A gift",points:51},{text:"Drinks",points:37},{text:"Fruits",points:27},{text:"Flowers",points:21}] },
-  { prompt: "What is something people often forget when travelling?", answers: [{text:"Toothbrush",points:64},{text:"Phone charger",points:51},{text:"Passport or ID",points:37},{text:"A jacket",points:27},{text:"Medication",points:21}] },
-  { prompt: "Name something that can make a person famous.", answers: [{text:"Music or singing",points:64},{text:"Acting",points:51},{text:"Sports talent",points:37},{text:"Social media videos",points:27},{text:" inventing something",points:21}] },
-  { prompt: "What is something students worry about before an exam?", answers: [{text:"Forgetting what they studied",points:64},{text:"Failing the exam",points:51},{text:"Running out of time",points:37},{text:"Difficult questions",points:27},{text:"Arriving late",points:21}] },
+  bonusQuestion("Name something people do when they hear surprising news.", ["Ask if it is true","Tell someone else","Gasp or shout","Check their phone","Laugh"]),
+  bonusQuestion("What might you see at a traditional celebration?", ["Dancing","Special clothes","Music","Food","Speeches"]),
+  bonusQuestion("Name something people do to cheer up a friend.", ["Make them laugh","Give advice","Buy them a treat","Listen to them","Take them out"]),
+  bonusQuestion("What is something people do when they win a prize?", ["Celebrate","Thank people","Take photos","Tell family","Share online"]),
+  bonusQuestion("Name something you would find backstage at a concert.", ["Microphones","Musical instruments","Speakers","Dressing room","Stage crew"]),
+  bonusQuestion("What might make someone cancel a party?", ["Bad weather","Illness","Not enough money","Venue problem","Few guests"]),
+  bonusQuestion("Name something people collect as a hobby.", ["Coins","Stamps","Shoes","模型 or figurines","Sports cards"]),
+  bonusQuestion("What is something you might see in a beauty salon?", ["Hair dryers","Mirrors","Chairs","Nail polish","Hair products"]),
+  bonusQuestion("Name something people do before taking a group photo.", ["Smile","Arrange themselves","Fix their hair","Choose a pose","Check the camera"]),
+  bonusQuestion("What might a person do after receiving a love message?", ["Smile","Reply quickly","Read it again","Show a friend","Feel shy"]),
+  bonusQuestion("Name something that makes a live show exciting.", ["Audience reactions","Funny moments","Surprise guests","Music","Competition"]),
+  bonusQuestion("What might people do during a blackout at a party?", ["Use phone lights","Sing together","Tell stories","Light candles","Go outside"]),
+  bonusQuestion("Name something people do when they meet a celebrity.", ["Ask for a photo","Say hello","Ask for an autograph","Get excited","Record a video"]),
+  bonusQuestion("What is something you might see at a street festival?", ["Food stalls","Live music","Dancers","Crowds","Decorations"]),
+  bonusQuestion("Name something people do to prepare for a big performance.", ["Rehearse","Choose an outfit","Practice lines","Warm up","Calm their nerves"]),
+  bonusQuestion("What might make a person laugh during a serious moment?", ["A funny face","A silly noise","An unexpected comment","Remembering a joke","Someone stumbling"]),
+  bonusQuestion("Name something people do when they cannot find their way.", ["Ask for directions","Use a map","Check GPS","Call someone","Look for signs"]),
+  bonusQuestion("What is something a good team needs to succeed?", ["Teamwork","Communication","Practice","Trust","A good leader"]),
+  bonusQuestion("Name something people do after a long day.", ["Rest","Take a shower","Eat","Watch something","Talk to family"]),
+  bonusQuestion("What might you find at a community talent show?", ["Singers","Dancers","Comedians","Poets","Musicians"]),
+  bonusQuestion("Name something people do to make a guest feel welcome.", ["Greet them warmly","Offer a seat","Serve refreshments","Introduce everyone","Show them around"]),
+  bonusQuestion("What is something that can spoil a live broadcast?", ["Poor internet","Power outage","Bad sound","Technical problems","Background noise"]),
+  bonusQuestion("Name something people do when their favorite song plays.", ["Sing along","Dance","Turn it louder","Record a video","Call a friend"]),
+  bonusQuestion("What might people bring to a picnic besides food?", ["Blanket","Drinks","Games","Music speaker","Camera"]),
+  bonusQuestion("Name something that makes a great host.", ["Sense of humor","Confidence","Good listening","Energy","Quick thinking"]),
+  bonusQuestion("What might someone do to celebrate a personal achievement?", ["Treat themselves","Tell family","Take photos","Go out","Give thanks"]),
+  bonusQuestion("Name something people do while waiting for an important announcement.", ["Check the time","Talk quietly","Pray","Look at the speaker","Use their phone"]),
+  bonusQuestion("What is something you might see at a school prize-giving day?", ["Trophies","Certificates","Students","Parents","Speeches"]),
+  bonusQuestion("Name something people do when they feel embarrassed.", ["Blush","Laugh nervously","Look away","Apologize","Cover their face"]),
+  bonusQuestion("What might you hear at a busy market?", ["Vendors calling","People bargaining","Music","Vehicles","Children talking"]),
 ];
+const BONUS_USED_KEY = "kingson-survey-show-bonus-used-v1";
+const SURVEY_USED_KEY = "kingson-survey-show-survey-used-v1";
+function shuffled<T>(items: T[]): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [copy[i], copy[j]] = [copy[j], copy[i]]; }
+  return copy;
+}
+function drawBonusQuestions(): BonusQuestion[] {
+  let used: string[] = [];
+  try { used = JSON.parse(localStorage.getItem(BONUS_USED_KEY) ?? "[]") as string[]; } catch { used = []; }
+  const available = shuffled(BONUS_DEFAULTS.filter((q) => !used.includes(q.prompt)));
+  let picked = available.slice(0, 5);
+  let nextUsed = [...used, ...picked.map((q) => q.prompt)];
+  if (picked.length < 5) {
+    const refill = shuffled(BONUS_DEFAULTS.filter((q) => !picked.some((p) => p.prompt === q.prompt)));
+    picked = [...picked, ...refill.slice(0, 5 - picked.length)];
+    nextUsed = picked.map((q) => q.prompt);
+  }
+  localStorage.setItem(BONUS_USED_KEY, JSON.stringify(nextUsed));
+  return picked;
+}
+function drawSurveyIds(questions: Question[]): string[] {
+  let used: string[] = [];
+  try { used = JSON.parse(localStorage.getItem(SURVEY_USED_KEY) ?? "[]") as string[]; } catch { used = []; }
+  const available = shuffled(questions.filter((q) => !used.includes(q.id)));
+  let picked = available.slice(0, 6);
+  let nextUsed = [...used, ...picked.map((q) => q.id)];
+  if (picked.length < 6) {
+    const refill = shuffled(questions.filter((q) => !picked.some((p) => p.id === q.id)));
+    picked = [...picked, ...refill.slice(0, 6 - picked.length)];
+    nextUsed = picked.map((q) => q.id);
+  }
+  localStorage.setItem(SURVEY_USED_KEY, JSON.stringify(nextUsed));
+  return picked.map((q) => q.id);
+}
 type BonusState = { questions: BonusQuestion[]; index: number; accepted: string[]; total: number; responses: string[]; correctCount: number };
 const BONUS_STORAGE_KEY = "kingson-survey-show-bonus-v1";
 const ROUND_QUESTIONS_KEY = "kingson-survey-show-round-questions-v1";
@@ -165,7 +229,7 @@ function Game() {
     setRoundMode(mode);
     localStorage.setItem(ROUND_KEY, mode);
     if (mode === "bonus") {
-      const freshBonus = { ...bonus, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0 };
+      const freshBonus = { ...bonus, questions: drawBonusQuestions(), index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0 };
       setBonus(freshBonus);
       localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus));
       setBonusGuess("");
@@ -832,7 +896,7 @@ function Game() {
           <p className="text-muted-foreground">Both team scores go back to 0 and all questions become unused. Your edited questions are kept.</p>
           <div className="mt-5 flex justify-end gap-2">
             <button className={btnGhost} onClick={() => setConfirmNew(false)}>Cancel</button>
-            <button className={btnDanger} onClick={() => { const fresh = reducer(s, { type: "newMatch" }); dispatch({ type: "__load", s: fresh }); const pool = fresh.questions.filter((question) => question.id !== fresh.currentId).sort(() => Math.random() - 0.5); const assignments: RoundQuestionsByTeam = { A: { classic: fresh.currentId, double: pool[0]?.id ?? fresh.currentId, triple: pool[1]?.id ?? pool[0]?.id ?? fresh.currentId }, B: { classic: pool[2]?.id ?? pool[0]?.id ?? fresh.currentId, double: pool[3]?.id ?? pool[1]?.id ?? fresh.currentId, triple: pool[4]?.id ?? pool[2]?.id ?? fresh.currentId } }; setRoundQuestions(assignments); localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments)); setTeamLeg(1); setFinalResults(null); localStorage.removeItem("kingson-survey-show-final-results-v1"); setRoundPoints({ A: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 }, B: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 } }); setAutoPlay(false); setRoundResult(null); setShowCountdown(null); setRoundMode("classic"); localStorage.setItem(ROUND_KEY, "classic"); const freshBonus = { ...bonus, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0 }; setBonus(freshBonus); localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus)); setTimer({ duration: 60, remaining: 60, running: false, endsAt: null }); localStorage.setItem(TIMER_KEY, JSON.stringify({ duration: 60, remaining: 60, running: false, endsAt: null })); setConfirmNew(false); }}>Yes, new match</button>
+            <button className={btnDanger} onClick={() => { const fresh = reducer(s, { type: "newMatch" }); const drawnIds = drawSurveyIds(fresh.questions); const assignments: RoundQuestionsByTeam = { A: { classic: drawnIds[0] ?? fresh.currentId, double: drawnIds[1] ?? fresh.currentId, triple: drawnIds[2] ?? fresh.currentId }, B: { classic: drawnIds[3] ?? fresh.currentId, double: drawnIds[4] ?? fresh.currentId, triple: drawnIds[5] ?? fresh.currentId } }; const started = reducer({ ...fresh, usedIds: [] }, { type: "next", id: assignments.A.classic }); dispatch({ type: "__load", s: started }); setRoundQuestions(assignments); localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments)); setTeamLeg(1); setFinalResults(null); localStorage.removeItem("kingson-survey-show-final-results-v1"); setRoundPoints({ A: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 }, B: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 } }); setAutoPlay(false); setRoundResult(null); setShowCountdown(null); setRoundMode("classic"); localStorage.setItem(ROUND_KEY, "classic"); const freshBonus = { ...bonus, questions: drawBonusQuestions(), index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0 }; setBonus(freshBonus); localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus)); setTimer({ duration: 60, remaining: 60, running: false, endsAt: null }); localStorage.setItem(TIMER_KEY, JSON.stringify({ duration: 60, remaining: 60, running: false, endsAt: null })); setConfirmNew(false); }}>Yes, new match</button>
           </div>
         </Modal>
       )}
