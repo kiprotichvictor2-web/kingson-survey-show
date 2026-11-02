@@ -267,6 +267,72 @@ function Game() {
     }
   };
 
+  const playCountdownTick = (secondsLeft: number) => {
+    try {
+      const AudioContextClass = window.AudioContext;
+      if (!AudioContextClass) return;
+      const context = audioContextRef.current ?? new AudioContextClass();
+      audioContextRef.current = context;
+      if (context.state === "suspended") void context.resume();
+      const now = context.currentTime;
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = "square";
+      oscillator.frequency.setValueAtTime(620 + (5 - secondsLeft) * 75, now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.11, now + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.095);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(now);
+      oscillator.stop(now + 0.11);
+    } catch {
+      // Sound is optional; the countdown remains visible if audio is unavailable.
+    }
+  };
+
+  const playTimeUpSound = () => {
+    try {
+      const AudioContextClass = window.AudioContext;
+      if (!AudioContextClass) return;
+      const context = audioContextRef.current ?? new AudioContextClass();
+      audioContextRef.current = context;
+      if (context.state === "suspended") void context.resume();
+      const now = context.currentTime;
+      [0, 0.2].forEach((offset) => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = "sawtooth";
+        oscillator.frequency.setValueAtTime(190, now + offset);
+        oscillator.frequency.exponentialRampToValueAtTime(95, now + offset + 0.28);
+        gain.gain.setValueAtTime(0.0001, now + offset);
+        gain.gain.exponentialRampToValueAtTime(0.2, now + offset + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.32);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(now + offset);
+        oscillator.stop(now + offset + 0.34);
+      });
+    } catch {
+      // Sound is optional; the timer still ends normally if audio is unavailable.
+    }
+  };
+
+  // Play countdown sounds only in the host tab, avoiding duplicate audio on the stage tab.
+  const previousTimerRef = useRef({ remaining: timer.remaining, running: timer.running });
+  useEffect(() => {
+    const previous = previousTimerRef.current;
+    if (!stageOnly) {
+      if (timer.running && timer.remaining > 0 && timer.remaining <= 5 && timer.remaining !== previous.remaining) {
+        playCountdownTick(timer.remaining);
+      }
+      if (previous.running && !timer.running && timer.remaining === 0 && previous.remaining > 0) {
+        playTimeUpSound();
+      }
+    }
+    previousTimerRef.current = { remaining: timer.remaining, running: timer.running };
+  }, [timer.remaining, timer.running, stageOnly]);
+
   const act = (a: Action) => {
     if (a.type === "strike" && s.phase !== "awarded") {
       setStrikeFlash((n) => n + 1);
