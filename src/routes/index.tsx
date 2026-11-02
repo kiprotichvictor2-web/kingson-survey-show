@@ -36,7 +36,7 @@ const btnGold = `${btn} bg-primary text-primary-foreground hover:brightness-110`
 const btnBlue = `${btn} bg-secondary text-secondary-foreground hover:brightness-110`;
 const btnGhost = `${btn} border border-border bg-muted text-foreground hover:bg-card`;
 const btnDanger = `${btn} bg-destructive text-destructive-foreground hover:brightness-110`;
-type TimerState = { duration: number; remaining: number; running: boolean };
+type TimerState = { duration: number; remaining: number; running: boolean; endsAt: number | null };
 const TIMER_KEY = "kingson-survey-show-timer-v1";
 
 function Game() {
@@ -46,7 +46,7 @@ function Game() {
   const [editing, setEditing] = useState(false);
   const [confirmNew, setConfirmNew] = useState(false);
   const [strikeFlash, setStrikeFlash] = useState(0);
-  const [timer, setTimer] = useState<TimerState>({ duration: 30, remaining: 30, running: false });
+  const [timer, setTimer] = useState<TimerState>({ duration: 30, remaining: 30, running: false, endsAt: null });
 
   useEffect(() => {
     const saved = loadState();
@@ -71,16 +71,23 @@ function Game() {
     return () => { window.removeEventListener("storage", syncFromOtherTab); window.removeEventListener("storage", syncTimer); };
   }, []);
   useEffect(() => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }, [s, hydrated]);
-  useEffect(() => { if (!stageOnly) localStorage.setItem(TIMER_KEY, JSON.stringify(timer)); }, [timer, stageOnly]);
+  const updateTimer = (next: TimerState) => {
+    setTimer(next);
+    localStorage.setItem(TIMER_KEY, JSON.stringify(next));
+  };
+  // Both tabs count down from the same end time, so background-tab throttling
+  // cannot pause the audience display.
   useEffect(() => {
-    if (!timer.running || stageOnly) return;
-    const interval = window.setInterval(() => setTimer((current) => {
-      if (!current.running) return current;
-      const remaining = Math.max(0, current.remaining - 1);
-      return { ...current, remaining, running: remaining > 0 };
-    }), 1000);
+    if (!timer.running || !timer.endsAt) return;
+    const tick = () => setTimer((current) => {
+      if (!current.running || !current.endsAt) return current;
+      const remaining = Math.max(0, Math.ceil((current.endsAt - Date.now()) / 1000));
+      return { ...current, remaining, running: remaining > 0, endsAt: remaining > 0 ? current.endsAt : null };
+    });
+    tick();
+    const interval = window.setInterval(tick, 250);
     return () => window.clearInterval(interval);
-  }, [timer.running, stageOnly]);
+  }, [timer.running, timer.endsAt]);
 
   const act = (a: Action) => {
     if (a.type === "strike" && s.phase !== "awarded") {
@@ -134,7 +141,7 @@ function Game() {
             q={q}
             act={act}
             timer={timer}
-            onTimerChange={setTimer}
+            onTimerChange={updateTimer}
             onStage={() => window.open(`${window.location.pathname}?stage=1`, "_blank", "noopener,noreferrer")}
             onHelp={() => setHelp(true)}
             onEdit={() => setEditing(true)}
@@ -305,9 +312,9 @@ function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, o
           <div><h3 className="font-display text-lg text-gold">ROUND COUNTDOWN</h3><p className="text-xs text-muted-foreground">The audience Stage screen updates automatically.</p></div>
           <div className={"font-display text-3xl tabular-nums " + (timer.remaining <= 5 && timer.running ? "text-destructive" : "text-gold")}>{timer.remaining}s</div>
           <div className="flex flex-wrap items-center gap-2">
-            {[30, 20, 15, 10].map((seconds) => <button key={seconds} className={timer.duration === seconds ? btnGold : btnGhost} onClick={() => onTimerChange({ duration: seconds, remaining: seconds, running: false })}>{seconds}s</button>)}
-            <button className={btnBlue} onClick={() => onTimerChange({ ...timer, running: !timer.running })} disabled={timer.remaining === 0}>{timer.running ? "Pause" : "Start"}</button>
-            <button className={btnGhost} onClick={() => onTimerChange({ ...timer, remaining: timer.duration, running: false })}>Reset</button>
+            {[30, 20, 15, 10].map((seconds) => <button key={seconds} className={timer.duration === seconds ? btnGold : btnGhost} onClick={() => onTimerChange({ duration: seconds, remaining: seconds, running: false, endsAt: null })}>{seconds}s</button>)}
+            <button className={btnBlue} onClick={() => onTimerChange(timer.running ? { ...timer, running: false, endsAt: null } : { ...timer, running: true, endsAt: Date.now() + timer.remaining * 1000 })} disabled={timer.remaining === 0}>{timer.running ? "Pause" : "Start"}</button>
+            <button className={btnGhost} onClick={() => onTimerChange({ ...timer, remaining: timer.duration, running: false, endsAt: null })}>Reset</button>
           </div>
         </div>
       </div>
