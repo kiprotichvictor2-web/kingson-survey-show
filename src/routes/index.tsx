@@ -1006,7 +1006,20 @@ function Game() {
       )}
       <div className={stageOnly ? "flex h-screen items-center justify-center bg-background" : "mx-auto max-w-[1500px] p-3 lg:p-5"}>
         <div className={(stageOnly ? "aspect-[9/16] w-[min(100vw,56.25vh)] max-h-screen" : "mx-auto aspect-[9/16] w-full max-w-[560px]") + " relative"}>
-          <Stage audienceWaiting={stageOnly && !audienceGameStarted} s={s} q={q} strikeFlash={strikeFlash} timer={timer} onReveal={(i) => act({ type: "reveal", index: i })} roundMode={roundMode} bonus={bonus} roundResult={roundResult} finalResults={finalResults} showCountdown={showCountdown} />
+          {(!stageOnly && !audienceGameStarted) ? (
+            <div className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-yellow-300/60 bg-[#090411] px-6 text-center shadow-[0_0_45px_rgba(234,179,8,.2)]">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(91,33,132,0.5),transparent_62%)]" />
+              <div className="relative z-10 flex flex-col items-center">
+                <LionCrest className="mb-5 h-28 w-28" />
+                <p className="text-xs font-black uppercase tracking-[0.35em] text-purple-200">Kingson Survey Show</p>
+                <h2 className="mt-3 font-display text-3xl font-black uppercase tracking-wide text-white">Are you ready?</h2>
+                <p className="mt-3 max-w-xs text-sm text-slate-300">Press below when your teams and audience are ready to begin.</p>
+                <button type="button" className={btnGold + " mt-8 min-w-56 px-8 py-5 text-xl shadow-[0_0_30px_rgba(234,179,8,.35)]"} onClick={playNow}>▶ PLAY NOW</button>
+              </div>
+            </div>
+          ) : (
+            <Stage audienceWaiting={stageOnly && !audienceGameStarted} s={s} q={q} strikeFlash={strikeFlash} timer={timer} onReveal={(i) => act({ type: "reveal", index: i })} roundMode={roundMode} bonus={bonus} roundResult={roundResult} finalResults={finalResults} showCountdown={showCountdown} />
+          )}
           {showCountdown && showCountdown.target !== "handover" && <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm"><div className="font-display text-[min(24vw,24cqh)] font-black leading-none text-gold drop-shadow-[0_0_35px_rgba(245,190,82,.7)]">{showCountdown.remaining}</div><div className="mt-3 font-display text-[min(4vw,4cqh)] tracking-[.3em] text-white">{showCountdown.target === "bonus" ? "GET READY FOR THE KINGSON BONUS ROUND" : "GET READY!"}</div></div>}
         </div>
         {stageOnly ? (
@@ -1311,7 +1324,6 @@ function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch, onPlayNow, 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-xl tracking-wide text-gold">HOST CONTROLS <span className="ml-2 font-sans text-xs font-normal text-muted-foreground">not part of the show — open Stage view in a second tab when streaming</span></h2>
         <div className="flex flex-wrap gap-2">
-          <button className={btnGold} onClick={onPlayNow}>▶ PLAY NOW</button>
           <button className={btnGhost} onClick={onHelp}>How to play (H)</button>
           <button className={btnBlue} onClick={onStage}>Stage view (S)</button>
         </div>
