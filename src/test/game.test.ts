@@ -21,14 +21,14 @@ describe("game rules", () => {
     expect(s.scores.A).toBe(54);
     expect(s.bank).toBe(0);
   });
-  it("three strikes opens steal for other team; success gives bank to stealer", () => {
-    let s = run(initialState(), { type: "reveal", index: 0 }, { type: "strike" }, { type: "strike" }, { type: "strike" });
-    expect(s.phase).toBe("steal");
-    expect(s.active).toBe("B");
-    s = reducer(s, { type: "reveal", index: 1 });
-    expect(s.scores).toEqual({ A: 0, B: 54 });
+  it("three strikes banks the round to the controlling team", () => {
+    const s = run(initialState(), { type: "reveal", index: 0 }, { type: "reveal", index: 1 }, { type: "strike" }, { type: "strike" }, { type: "strike" });
+    expect(s.phase).toBe("awarded");
+    expect(s.strikes).toBe(3);
+    expect(s.scores).toEqual({ A: 54, B: 0 });
+    expect(s.bank).toBe(0);
   });
-  it("failed steal gives bank to original team", () => {
+  it("stealFail after the round is already banked does not award twice", () => {
     const s = run(initialState(), { type: "reveal", index: 0 }, { type: "strike" }, { type: "strike" }, { type: "strike" }, { type: "stealFail" });
     expect(s.scores).toEqual({ A: 32, B: 0 });
   });
