@@ -1267,32 +1267,45 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
         </div>
       )}
       {finalResults && showCountdown?.target !== "handover" && (
-        <div className="ks-final-show absolute inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto px-5 py-4 text-center">
+        <div className="ks-final-show absolute inset-0 z-50 flex flex-col items-center justify-start overflow-y-auto px-[2.5cqw] py-[1.5cqh] text-center">
           <div className="ks-final-rays pointer-events-none absolute inset-0" />
-          <div className="relative z-10 w-full max-w-4xl">
-            <div className="mx-auto mb-1 flex items-center justify-center"><LionCrest className="h-[7cqh] w-[7cqh]" /></div>
-            <div className="ks-final-kicker font-display tracking-[.28em] text-purple-200" style={{fontSize:"3cqh"}}>✦ KINGSON SURVEY SHOW ✦</div>
-            <div className="ks-final-heading mt-1 font-display font-black tracking-wide text-white" style={{fontSize:"5.8cqh",lineHeight:1.05}}>{finalResults.finalMatch ? "FINAL SCOREBOARD" : "TEAM RESULTS"}</div>
-            {bonus.revealed && <div className="mx-auto mt-2 grid w-full max-w-3xl grid-cols-1 gap-1 rounded-xl border border-yellow-300/60 bg-black/65 p-2 text-left">
-              <div className="mb-1 text-center font-display text-yellow-200" style={{fontSize:"2.8cqh"}}>BONUS MISSION · ANSWER REVEAL</div>
-              {bonus.questions.map((question,index)=><div key={index} className="grid grid-cols-[1fr_auto] items-center gap-2 border-b border-white/15 py-1 last:border-0">
-                <div className="min-w-0 text-white" style={{fontSize:"2.4cqh"}}>{index+1}. {question.answers.find(answer=>answer.text===bonus.responses[index])?.text ?? "No answer"}</div>
-                <div className="font-display font-bold text-yellow-200" style={{fontSize:"2.5cqh"}}>{question.answers.find(answer=>answer.text===bonus.responses[index])?.points ?? 0} PTS</div>
-              </div>)}
-            </div>}
-            {finalResults.finalMatch && finalResults.teams ? <div className="mx-auto mt-3 grid w-full max-w-3xl grid-cols-2 gap-2">
-              {([finalResults.champion === "tie" ? finalResults.team : finalResults.champion as Team, (finalResults.champion === "tie" ? (finalResults.team === "A" ? "B" : "A") : finalResults.champion === "A" ? "B" : "A")] as Team[]).map((team,rank)=><div key={team} className={"rounded-xl border-2 px-2 py-2 "+(rank===0?"border-yellow-300 bg-yellow-400/15":"border-purple-300/60 bg-purple-950/70")}>
-                <div className="font-display text-yellow-200" style={{fontSize:"2.7cqh"}}>{finalResults.champion === "tie" ? "TIED" : rank===0?"🏆 1ST PLACE":"2ND PLACE"}</div>
-                <div className="mt-1 truncate font-display text-white" style={{fontSize:"3.5cqh"}}>{s.teamNames[team]}</div>
-                <div className="font-display font-black text-yellow-200" style={{fontSize:"5.2cqh",lineHeight:1.05}}>{finalResults.teams[team].total.toLocaleString()}</div>
-                <div className="text-white/70" style={{fontSize:"2cqh"}}>POINTS</div>
-              </div>)}
-            </div> : <div className="ks-final-team mx-auto mt-2 inline-flex items-center justify-center rounded-full border-2 border-yellow-300/80 px-6 py-1 font-display text-yellow-100" style={{fontSize:"3.5cqh"}}>{s.teamNames[finalResults.team]}</div>}
-            <div className="mx-auto mt-3 grid w-full max-w-3xl grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-left">
-              {([["CLASSIC ROUND",finalResults.breakdown.classic,"#12b8e8"],["DOUBLE ROUND ×2",finalResults.breakdown.double,"#8b5cf6"],["TRIPLE ROUND ×3",finalResults.breakdown.triple,"#ec4899"],["KINGSON BONUS MISSION",finalResults.breakdown.bonus,"#f59e0b"],["500-POINT REWARD",finalResults.breakdown.bonusExtra,"#22c55e"]] as [string,number,string][]).map(([label,points,tint],index)=><div key={label} className="ks-final-row col-span-2 grid grid-cols-[1fr_auto] items-center rounded-xl border-l-4 px-4 py-1.5" style={{borderLeftColor:tint,background:`linear-gradient(100deg,${tint}38,rgba(20,10,32,.94) 72%)`,animationDelay:`${index*100}ms`}}><div className="font-display text-white" style={{fontSize:"2.9cqh"}}>{label}</div><div className="font-display font-black text-white" style={{fontSize:"3.6cqh"}}>{points.toLocaleString()} <span className="text-yellow-200" style={{fontSize:"2cqh"}}>PTS</span></div></div>)}
-              <div className="ks-final-total col-span-2 mt-1 flex items-center justify-between rounded-2xl border-2 border-yellow-300 px-5 py-2"><div className="font-display font-black text-white" style={{fontSize:"3.8cqh"}}>GRAND TOTAL</div><div className="font-display font-black text-yellow-200" style={{fontSize:"7cqh",lineHeight:1}}>{finalResults.total.toLocaleString()}</div></div>
+          <div className="relative z-10 flex min-h-full w-full max-w-5xl flex-col items-center justify-center gap-[1cqh]">
+            <div className="mx-auto flex items-center justify-center"><LionCrest className="h-[4.5cqh] w-[4.5cqh]" /></div>
+            <div className="ks-final-kicker font-display tracking-[.18em] text-purple-200" style={{fontSize:"clamp(.65rem,1.8cqh,1.2rem)"}}>✦ KINGSON SURVEY SHOW ✦</div>
+            <div className="ks-final-heading font-display font-black tracking-wide text-white" style={{fontSize:"clamp(1.2rem,4cqh,3rem)",lineHeight:1.02}}>{finalResults.finalMatch ? "FINAL SCOREBOARD" : "TEAM RESULTS"}</div>
+            {bonus.revealed && (
+              <div className="mx-auto grid w-full max-w-4xl grid-cols-5 gap-[.5cqw] rounded-lg border border-yellow-300/50 bg-black/65 p-[.7cqw] text-center">
+                {bonus.questions.map((question,index)=><div key={index} className="min-w-0 rounded bg-white/5 px-1 py-1">
+                  <div className="font-display text-yellow-200" style={{fontSize:"clamp(.55rem,1.25cqh,.9rem)"}}>Q{index+1}</div>
+                  <div className="truncate text-white" style={{fontSize:"clamp(.55rem,1.3cqh,.95rem)"}}>{bonus.questions[index].answers.find(answer=>answer.text===bonus.responses[index])?.text ?? "No answer"}</div>
+                  <div className="font-display font-bold text-yellow-200" style={{fontSize:"clamp(.6rem,1.5cqh,1rem)"}}>{question.answers.find(answer=>answer.text===bonus.responses[index])?.points ?? 0} PTS</div>
+                </div>)}
+              </div>
+            )}
+            <div className={"mx-auto grid w-full max-w-4xl gap-[1cqw] "+(finalResults.finalMatch && finalResults.teams ? "grid-cols-2" : "grid-cols-1 max-w-2xl")}>
+              {(finalResults.finalMatch && finalResults.teams
+                ? ([finalResults.champion === "tie" ? finalResults.team : finalResults.champion as Team, (finalResults.champion === "tie" ? (finalResults.team === "A" ? "B" : "A") : finalResults.champion === "A" ? "B" : "A")] as Team[]).map(team=>({team,...finalResults.teams![team]}))
+                : [{team:finalResults.team,breakdown:finalResults.breakdown,total:finalResults.total}]
+              ).map((entry,rank)=>(
+                <div key={entry.team} className={"min-w-0 rounded-xl border-2 p-[1cqw] "+(rank===0?"border-yellow-300 bg-yellow-400/10":"border-purple-300/60 bg-purple-950/75")}>
+                  <div className="font-display text-yellow-200" style={{fontSize:"clamp(.7rem,1.8cqh,1.25rem)"}}>{finalResults.finalMatch ? (finalResults.champion === "tie" ? "🤝 TIED" : rank===0?"🏆 1ST PLACE":"2ND PLACE") : "TEAM SCORE"}</div>
+                  <div className="truncate font-display font-black text-white" style={{fontSize:"clamp(.9rem,2.5cqh,1.8rem)"}}>{s.teamNames[entry.team]}</div>
+                  <div className="my-[.5cqh] grid grid-cols-[1fr_auto] gap-x-1 text-left">
+                    {([[ "CLASSIC",entry.breakdown.classic ],[ "DOUBLE ×2",entry.breakdown.double ],[ "TRIPLE ×3",entry.breakdown.triple ],[ "BONUS MISSION",entry.breakdown.bonus ],[ "500-POINT REWARD",entry.breakdown.bonusExtra ]] as [string,number][]).map(([label,points])=>(
+                      <div key={label} className="col-span-2 grid grid-cols-[1fr_auto] items-center gap-1 border-b border-white/15 py-[.35cqh]">
+                        <div className="font-display text-white" style={{fontSize:"clamp(.62rem,1.55cqh,1.05rem)"}}>{label}</div>
+                        <div className="font-display font-black text-yellow-100 tabular-nums" style={{fontSize:"clamp(.7rem,1.8cqh,1.2rem)"}}>{points.toLocaleString()} <span className="text-yellow-200/80" style={{fontSize:"clamp(.5rem,1.1cqh,.75rem)"}}>PTS</span></div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-[.5cqh] flex items-center justify-between gap-1 rounded-lg border border-yellow-300 bg-black/50 px-[1cqw] py-[.6cqh]">
+                    <div className="font-display font-black text-white" style={{fontSize:"clamp(.7rem,1.8cqh,1.2rem)"}}>TOTAL</div>
+                    <div className="font-display font-black text-yellow-200 tabular-nums" style={{fontSize:"clamp(1rem,3.3cqh,2.3rem)",lineHeight:1}}>{entry.total.toLocaleString()}</div>
+                  </div>
+                </div>
+              ))}
             </div>
-            {finalResults.finalMatch ? <div className="ks-final-champion mt-3 font-display font-black text-yellow-200" style={{fontSize:"5cqh"}}>{finalResults.champion === "tie" ? "🏆 IT'S A TIE! 🏆" : "🏆 CHAMPION: " + s.teamNames[finalResults.champion as Team] + " 🏆"}</div> : <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-purple-300/70 bg-purple-950/90 px-5 py-2 font-display text-white" style={{fontSize:"3cqh"}}>TEAM B PREPARES IN <span className="font-black text-yellow-300">{showCountdown?.target === "handover" ? showCountdown.remaining : 30}</span> SECONDS</div>}
+            {finalResults.finalMatch ? <div className="ks-final-champion font-display font-black text-yellow-200" style={{fontSize:"clamp(1rem,3.6cqh,2.6rem)"}}>{finalResults.champion === "tie" ? "🏆 IT'S A TIE! 🏆" : "🏆 CHAMPION: " + s.teamNames[finalResults.champion as Team] + " 🏆"}</div> : <div className="inline-flex items-center gap-2 rounded-full border border-purple-300/70 bg-purple-950/90 px-4 py-1 font-display text-white" style={{fontSize:"clamp(.7rem,1.8cqh,1.2rem)"}}>TEAM B PREPARES IN <span className="font-black text-yellow-300">{showCountdown?.target === "handover" ? showCountdown.remaining : 30}</span> SECONDS</div>}
           </div>
         </div>
       )}
