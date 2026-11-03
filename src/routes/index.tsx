@@ -780,23 +780,11 @@ function Game() {
     }
   };
 
-  // The welcome screen waits for a real Play click so browsers can play sound.
+  // Move from the welcome screen to preparation. The hosted theme player
+  // is available on the preparation screen so the host can start it manually.
   const enterShow = () => {
-    playShowIntro();
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      window.setTimeout(() => {
-        const announcement = new SpeechSynthesisUtterance(
-          "Welcome to Kingson Survey Show! Get ready for the ultimate battle of answers. Gather your team, bring your best guesses, and let's play!"
-        );
-        announcement.lang = "en-US";
-        announcement.rate = 0.92;
-        announcement.pitch = 0.92;
-        announcement.volume = 1;
-        window.speechSynthesis.speak(announcement);
-      }, 4200);
-    }
-    window.setTimeout(() => setWelcomeOpen(false), 8200);
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    setWelcomeOpen(false);
   };
 
   const playTeamEntranceSound = (team: Team) => {
@@ -1014,7 +1002,18 @@ function Game() {
                 <p className="text-xs font-black uppercase tracking-[0.35em] text-purple-200">Kingson Survey Show</p>
                 <h2 className="mt-3 font-display text-3xl font-black uppercase tracking-wide text-white">Are you ready?</h2>
                 <p className="mt-3 max-w-xs text-sm text-slate-300">Press below when your teams and audience are ready to begin.</p>
-                <button type="button" className={btnGold + " mt-8 min-w-56 px-8 py-5 text-xl shadow-[0_0_30px_rgba(234,179,8,.35)]"} onClick={playNow}>▶ PLAY NOW</button>
+                <div className="mt-5 w-full max-w-[340px] overflow-hidden rounded-xl border border-yellow-300/40 bg-black/60 p-2">
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-yellow-200">The Lion's Grand Entrance</p>
+                  <iframe
+                    title="The Lion's Grand Entrance theme music"
+                    src="https://suno.com/embed/10c14861-bbd4-45d8-a940-31e366f88733"
+                    className="h-[140px] w-full rounded-lg border-0"
+                    allow="autoplay; encrypted-media"
+                    loading="eager"
+                  />
+                  <p className="mt-1 text-[10px] text-slate-400">Use the player's volume control to set a comfortable level.</p>
+                </div>
+                <button type="button" className={btnGold + " mt-6 min-w-56 px-8 py-5 text-xl shadow-[0_0_30px_rgba(234,179,8,.35)]"} onClick={playNow}>▶ PLAY NOW</button>
               </div>
             </div>
           ) : (
