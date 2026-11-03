@@ -1241,7 +1241,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                     ) : (
                       <>
                         <span className="mr-[2cqw] flex h-[5.5cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-mono font-semibold tabular-nums text-gold" style={{ fontSize: "3.8cqh" }}>{i + 1}</span>
-                        <span className="min-w-0 flex-1 whitespace-nowrap overflow-hidden font-sans font-semibold tracking-wide uppercase text-white" style={{ fontSize: `${Math.max(1.7, Math.min(4.1, 4.1 * 30 / Math.max(1, ans.text.length)))}cqh`, lineHeight: 1.08 }}>{ans.text}</span>
+                        <span className="min-w-0 flex-1 whitespace-normal break-words font-sans font-semibold tracking-wide uppercase text-white" style={{ fontSize: `${Math.max(1.65, Math.min(4.1, 4.1 * 42 / Math.max(1, ans.text.length)))}cqh`, lineHeight: 1.02, overflowWrap: "anywhere" }}>{ans.text}</span>
                         <span className={`ml-[2cqw] flex h-[6.2cqh] min-w-[6.2cqh] shrink-0 items-center justify-center rounded-lg px-[1cqw] font-display font-black ${t === "scored" ? "bg-primary-foreground text-primary" : "bg-slate-950/70 text-gold"}`} style={{ fontSize: "4cqh" }}>{ans.points}</span>
                       </>
                     )}
