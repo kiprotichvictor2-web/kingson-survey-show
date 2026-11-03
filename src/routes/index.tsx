@@ -1197,7 +1197,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
               <span className="font-display text-muted-foreground" style={{ fontSize: "2.4cqh" }}>ROUND BANK</span>
               <span key={s.bank} className="pop font-display gold-text" style={{ fontSize: "5cqh", lineHeight: 1 }}>{s.bank}</span>
             </div>
-            <div className="grid flex-1 min-h-0 grid-cols-1 grid-rows-6 gap-[.7cqh]" style={{ perspective: 800 })>
+            <div className="grid flex-1 min-h-0 grid-cols-1 grid-rows-6 gap-[.7cqh]" style={{ perspective: 800 }}>
               {q.answers.map((ans, i) => {
                 const t = s.tiles[i];
                 return (
