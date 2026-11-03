@@ -1202,7 +1202,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                     const showExpected = bonus.revealed && submitted && (!matched || (expected && matched.text !== expected.text));
                     const points = bonus.revealed && matched ? matched.points : 0;
                     return <div key={i} className="flex min-h-0 items-center gap-[2cqw] rounded-xl border-2 border-gold/50 bg-slate-950/75 px-[2cqw] py-[.45cqh]">
-                      <span className="flex h-[5.5cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-mono font-semibold tabular-nums text-gold" style={{fontSize:"3.2cqh"}}>{i + 1}</span>
+                      <span className="flex h-[6.2cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-mono font-semibold tabular-nums text-gold" style={{fontSize:"3.2cqh"}}>{i + 1}</span>
                       <div className="min-w-0 flex-1 text-left">
                         <div className="break-words font-sans font-medium tracking-wide text-white" style={{fontSize:"2.8cqh",lineHeight:1.08}}>{submitted || "WAITING FOR ANSWER"}</div>
                         {showExpected && expected && <div className="mt-[.25cqh] break-words font-sans font-semibold tracking-wide text-emerald-300" style={{fontSize:"2.45cqh",lineHeight:1.05}}>CORRECT ANSWER: {expected.text}</div>}
@@ -1240,9 +1240,9 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                       <span className="mx-auto flex aspect-square h-[70%] items-center justify-center rounded-full bg-background/70 font-mono font-semibold tabular-nums text-gold" style={{ fontSize: "6cqh", border: "2px solid var(--gold)" }}>{i + 1}</span>
                     ) : (
                       <>
-                        <span className="mr-[2cqw] flex h-[5.5cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-mono font-semibold tabular-nums text-gold" style={{ fontSize: "3.2cqh" }}>{i + 1}</span>
-                        <span className="min-w-0 flex-1 whitespace-nowrap overflow-hidden font-sans font-semibold tracking-wide uppercase text-white" style={{ fontSize: `${Math.max(1.7, Math.min(3.4, 3.4 * 30 / Math.max(1, ans.text.length)))}cqh`, lineHeight: 1.08 }}>{ans.text}</span>
-                        <span className={`ml-[2cqw] flex h-[5.5cqh] min-w-[5.5cqh] shrink-0 items-center justify-center rounded-lg px-[1cqw] font-display font-black ${t === "scored" ? "bg-primary-foreground text-primary" : "bg-slate-950/70 text-gold"}`} style={{ fontSize: "3.5cqh" }}>{ans.points}</span>
+                        <span className="mr-[2cqw] flex h-[5.5cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-mono font-semibold tabular-nums text-gold" style={{ fontSize: "3.8cqh" }}>{i + 1}</span>
+                        <span className="min-w-0 flex-1 whitespace-nowrap overflow-hidden font-sans font-semibold tracking-wide uppercase text-white" style={{ fontSize: `${Math.max(1.7, Math.min(4.1, 4.1 * 30 / Math.max(1, ans.text.length)))}cqh`, lineHeight: 1.08 }}>{ans.text}</span>
+                        <span className={`ml-[2cqw] flex h-[6.2cqh] min-w-[6.2cqh] shrink-0 items-center justify-center rounded-lg px-[1cqw] font-display font-black ${t === "scored" ? "bg-primary-foreground text-primary" : "bg-slate-950/70 text-gold"}`} style={{ fontSize: "4cqh" }}>{ans.points}</span>
                       </>
                     )}
                   </button>
