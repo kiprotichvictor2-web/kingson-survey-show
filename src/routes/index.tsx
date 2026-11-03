@@ -1267,49 +1267,48 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
         </div>
       )}
       {finalResults && showCountdown?.target !== "handover" && (
-        <div className="ks-final-show absolute inset-0 z-50 flex flex-col items-center justify-start overflow-y-auto px-[2.5cqw] py-[1.5cqh] text-center">
+        <div className="ks-final-show absolute inset-0 z-50 overflow-y-auto px-3 py-4 text-center sm:px-6 sm:py-6">
           <div className="ks-final-rays pointer-events-none absolute inset-0" />
-          <div className="relative z-10 flex min-h-full w-full max-w-5xl flex-col items-center justify-center gap-[1cqh]">
-            <div className="mx-auto flex items-center justify-center"><LionCrest className="h-[4.5cqh] w-[4.5cqh]" /></div>
-            <div className="ks-final-kicker font-display tracking-[.18em] text-purple-200" style={{fontSize:"clamp(.65rem,1.8cqh,1.2rem)"}}>✦ KINGSON SURVEY SHOW ✦</div>
-            <div className="ks-final-heading font-display font-black tracking-wide text-white" style={{fontSize:"clamp(1.2rem,4cqh,3rem)",lineHeight:1.02}}>{finalResults.finalMatch ? "FINAL SCOREBOARD" : "TEAM RESULTS"}</div>
+          <div className="relative z-10 mx-auto flex min-h-full w-full max-w-5xl flex-col items-center justify-start gap-3 sm:justify-center sm:gap-4">
+            <div className="mx-auto flex items-center justify-center"><LionCrest className="h-12 w-12 sm:h-16 sm:w-16" /></div>
+            <div className="ks-final-kicker font-display font-bold tracking-[.16em] text-purple-100" style={{fontSize:"clamp(.9rem,2.2vw,1.35rem)"}}>✦ KINGSON SURVEY SHOW ✦</div>
+            <div className="ks-final-heading font-display font-black tracking-wide text-white drop-shadow-lg" style={{fontSize:"clamp(1.8rem,5vw,3.5rem)",lineHeight:1.05}}>{finalResults.finalMatch ? "FINAL SCOREBOARD" : "TEAM RESULTS"}</div>
             {bonus.revealed && (
-              <div className="mx-auto grid w-full max-w-4xl grid-cols-5 gap-[.5cqw] rounded-lg border border-yellow-300/50 bg-black/65 p-[.7cqw] text-center">
-                {bonus.questions.map((question,index)=><div key={index} className="min-w-0 rounded bg-white/5 px-1 py-1">
-                  <div className="font-display text-yellow-200" style={{fontSize:"clamp(.55rem,1.25cqh,.9rem)"}}>Q{index+1}</div>
-                  <div className="truncate text-white" style={{fontSize:"clamp(.55rem,1.3cqh,.95rem)"}}>{bonus.questions[index].answers.find(answer=>answer.text===bonus.responses[index])?.text ?? "No answer"}</div>
-                  <div className="font-display font-bold text-yellow-200" style={{fontSize:"clamp(.6rem,1.5cqh,1rem)"}}>{question.answers.find(answer=>answer.text===bonus.responses[index])?.points ?? 0} PTS</div>
+              <div className="mx-auto grid w-full max-w-4xl grid-cols-2 gap-2 rounded-xl border-2 border-yellow-300/70 bg-black/85 p-3 text-center sm:grid-cols-5">
+                {bonus.questions.map((question,index)=><div key={index} className="min-w-0 rounded-lg border border-white/15 bg-white/10 px-2 py-2">
+                  <div className="font-display font-bold text-yellow-200" style={{fontSize:"clamp(.85rem,1.8vw,1.1rem)"}}>QUESTION {index+1}</div>
+                  <div className="mt-1 break-words font-semibold text-white" style={{fontSize:"clamp(.85rem,1.7vw,1.05rem)"}}>{bonus.questions[index].answers.find(answer=>answer.text===bonus.responses[index])?.text ?? "No answer"}</div>
+                  <div className="mt-1 font-display font-black text-yellow-200" style={{fontSize:"clamp(1rem,2vw,1.3rem)"}}>{question.answers.find(answer=>answer.text===bonus.responses[index])?.points ?? 0} PTS</div>
                 </div>)}
               </div>
             )}
-            <div className={"mx-auto grid w-full max-w-4xl gap-[1cqw] "+(finalResults.finalMatch && finalResults.teams ? "grid-cols-2" : "grid-cols-1 max-w-2xl")}>
+            <div className={"mx-auto grid w-full max-w-4xl grid-cols-1 gap-3 sm:gap-4 "+(finalResults.finalMatch && finalResults.teams ? "sm:grid-cols-2" : "max-w-2xl")}>
               {(finalResults.finalMatch && finalResults.teams
                 ? ([finalResults.champion === "tie" ? finalResults.team : finalResults.champion as Team, (finalResults.champion === "tie" ? (finalResults.team === "A" ? "B" : "A") : finalResults.champion === "A" ? "B" : "A")] as Team[]).map(team=>({team,...finalResults.teams![team]}))
                 : [{team:finalResults.team,breakdown:finalResults.breakdown,total:finalResults.total}]
               ).map((entry,rank)=>(
-                <div key={entry.team} className={"min-w-0 rounded-xl border-2 p-[1cqw] "+(rank===0?"border-yellow-300 bg-yellow-400/10":"border-purple-300/60 bg-purple-950/75")}>
-                  <div className="font-display text-yellow-200" style={{fontSize:"clamp(.7rem,1.8cqh,1.25rem)"}}>{finalResults.finalMatch ? (finalResults.champion === "tie" ? "🤝 TIED" : rank===0?"🏆 1ST PLACE":"2ND PLACE") : "TEAM SCORE"}</div>
-                  <div className="truncate font-display font-black text-white" style={{fontSize:"clamp(.9rem,2.5cqh,1.8rem)"}}>{s.teamNames[entry.team]}</div>
-                  <div className="my-[.5cqh] grid grid-cols-[1fr_auto] gap-x-1 text-left">
+                <div key={entry.team} className={"min-w-0 rounded-2xl border-4 p-4 text-left shadow-2xl sm:p-5 "+(rank===0?"border-yellow-300 bg-gradient-to-br from-yellow-300/25 via-yellow-950/95 to-black":"border-purple-300 bg-gradient-to-br from-purple-700/90 via-purple-950/95 to-black")}>
+                  <div className="mb-2 text-center font-display font-black tracking-wider text-yellow-200" style={{fontSize:"clamp(1rem,2.5vw,1.5rem)"}}>{finalResults.finalMatch ? (finalResults.champion === "tie" ? "🤝 TIED" : rank===0?"🏆 WINNER · 1ST PLACE":"2ND PLACE · RUNNER-UP") : "TEAM SCORE"}</div>
+                  <div className="break-words text-center font-display font-black leading-tight text-white" style={{fontSize:"clamp(1.5rem,4vw,2.5rem)"}}>{s.teamNames[entry.team]}</div>
+                  <div className="my-3 space-y-1.5">
                     {([[ "CLASSIC",entry.breakdown.classic ],[ "DOUBLE ×2",entry.breakdown.double ],[ "TRIPLE ×3",entry.breakdown.triple ],[ "BONUS MISSION",entry.breakdown.bonus ],[ "500-POINT REWARD",entry.breakdown.bonusExtra ]] as [string,number][]).map(([label,points])=>(
-                      <div key={label} className="col-span-2 grid grid-cols-[1fr_auto] items-center gap-1 border-b border-white/15 py-[.35cqh]">
-                        <div className="font-display text-white" style={{fontSize:"clamp(.62rem,1.55cqh,1.05rem)"}}>{label}</div>
-                        <div className="font-display font-black text-yellow-100 tabular-nums" style={{fontSize:"clamp(.7rem,1.8cqh,1.2rem)"}}>{points.toLocaleString()} <span className="text-yellow-200/80" style={{fontSize:"clamp(.5rem,1.1cqh,.75rem)"}}>PTS</span></div>
+                      <div key={label} className="flex items-center justify-between gap-3 border-b border-white/25 py-2">
+                        <div className="font-display font-bold text-white" style={{fontSize:"clamp(.95rem,2vw,1.2rem)"}}>{label}</div>
+                        <div className="shrink-0 font-display font-black text-yellow-200 tabular-nums" style={{fontSize:"clamp(1.1rem,2.5vw,1.55rem)"}}>{points.toLocaleString()} <span className="text-yellow-100" style={{fontSize:"clamp(.75rem,1.4vw,.95rem)"}}>PTS</span></div>
                       </div>
                     ))}
                   </div>
-                  <div className="mt-[.5cqh] flex items-center justify-between gap-1 rounded-lg border border-yellow-300 bg-black/50 px-[1cqw] py-[.6cqh]">
-                    <div className="font-display font-black text-white" style={{fontSize:"clamp(.7rem,1.8cqh,1.2rem)"}}>TOTAL</div>
-                    <div className="font-display font-black text-yellow-200 tabular-nums" style={{fontSize:"clamp(1rem,3.3cqh,2.3rem)",lineHeight:1}}>{entry.total.toLocaleString()}</div>
+                  <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border-2 border-yellow-300 bg-black px-3 py-3 sm:px-4">
+                    <div className="font-display font-black tracking-wider text-white" style={{fontSize:"clamp(1.1rem,2.4vw,1.5rem)"}}>TOTAL SCORE</div>
+                    <div className="font-display font-black leading-none text-yellow-200 tabular-nums drop-shadow-[0_0_12px_rgba(253,224,71,.45)]" style={{fontSize:"clamp(2rem,5vw,3.5rem)"}}>{entry.total.toLocaleString()}</div>
                   </div>
                 </div>
               ))}
             </div>
-            {finalResults.finalMatch ? <div className="ks-final-champion font-display font-black text-yellow-200" style={{fontSize:"clamp(1rem,3.6cqh,2.6rem)"}}>{finalResults.champion === "tie" ? "🏆 IT'S A TIE! 🏆" : "🏆 CHAMPION: " + s.teamNames[finalResults.champion as Team] + " 🏆"}</div> : <div className="inline-flex items-center gap-2 rounded-full border border-purple-300/70 bg-purple-950/90 px-4 py-1 font-display text-white" style={{fontSize:"clamp(.7rem,1.8cqh,1.2rem)"}}>TEAM B PREPARES IN <span className="font-black text-yellow-300">{showCountdown?.target === "handover" ? showCountdown.remaining : 30}</span> SECONDS</div>}
+            {finalResults.finalMatch ? <div className="ks-final-champion mt-1 rounded-xl border-2 border-yellow-300 bg-black/90 px-4 py-3 font-display font-black text-yellow-200 shadow-xl sm:px-8" style={{fontSize:"clamp(1.35rem,3.5vw,2.7rem)"}}>{finalResults.champion === "tie" ? "🏆 IT'S A TIE! 🏆" : "🏆 CHAMPION: " + s.teamNames[finalResults.champion as Team] + " 🏆"}</div> : <div className="inline-flex items-center gap-2 rounded-full border-2 border-purple-200 bg-purple-950 px-5 py-2 font-display font-bold text-white" style={{fontSize:"clamp(1rem,2.2vw,1.4rem)"}}>TEAM B PREPARES IN <span className="font-black text-yellow-300">{showCountdown?.target === "handover" ? showCountdown.remaining : 30}</span> SECONDS</div>}
           </div>
         </div>
       )}
-
       {flash && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-destructive/15">
           <span className="pop font-display text-destructive" style={{ fontSize: "40cqh", lineHeight: 1, textShadow: "0 0 40px var(--destructive)" }}>✕</span>
