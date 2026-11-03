@@ -167,7 +167,7 @@ function Game() {
   const [stageOnly, setStageOnly] = useState(false);
   const [audienceGameStarted, setAudienceGameStarted] = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(true);
-  const [themePlayerActive, setThemePlayerActive] = useState(true);
+  const [themePlayerActive, setThemePlayerActive] = useState(false);
   const [help, setHelp] = useState(false);
   const [editing, setEditing] = useState(false);
   const [confirmNew, setConfirmNew] = useState(false);
@@ -786,6 +786,7 @@ function Game() {
   // PLAY NOW removes the player to stop the music.
   const enterShow = () => {
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    setThemePlayerActive(true);
     setWelcomeOpen(false);
   };
 
@@ -971,17 +972,14 @@ function Game() {
       {!stageOnly && (
         <div className={(welcomeOpen ? "fixed inset-0 z-[100] flex min-h-screen items-center justify-center overflow-hidden bg-[#090411] px-5 py-10 text-center" : "pointer-events-none fixed inset-0 z-[100] flex min-h-screen items-center justify-center overflow-hidden bg-[#090411] px-5 py-10 text-center opacity-0")}>
           {themePlayerActive && (
-            <div className="absolute bottom-5 left-1/2 z-20 w-[min(340px,calc(100vw-2rem))] -translate-x-1/2 rounded-xl border border-yellow-300/40 bg-black/70 p-2">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-yellow-200">The Lion's Grand Entrance</p>
-              <iframe
-                title="The Lion's Grand Entrance theme music"
-                src="https://suno.com/embed/10c14861-bbd4-45d8-a940-31e366f88733"
-                className="h-[140px] w-full rounded-lg border-0"
-                allow="autoplay; encrypted-media"
-                loading="eager"
-              />
-              <p className="mt-1 text-[10px] text-slate-400">Set a comfortable volume, then press the game's Play button.</p>
-            </div>
+            <iframe
+              title="Kingson Survey Show background theme"
+              src="https://suno.com/embed/10c14861-bbd4-45d8-a940-31e366f88733?autoplay=1"
+              className="pointer-events-none fixed left-0 top-0 h-px w-px opacity-0"
+              allow="autoplay; encrypted-media"
+              loading="eager"
+              aria-hidden="true"
+            />
           )}
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(91,33,132,0.48),transparent_58%)]" />
           <div className="pointer-events-none absolute inset-0 opacity-30" style={{ backgroundImage: "linear-gradient(rgba(234,179,8,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(192,132,252,.12) 1px, transparent 1px)", backgroundSize: "54px 54px" }} />
