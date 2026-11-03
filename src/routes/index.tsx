@@ -1314,6 +1314,9 @@ function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch, onPlayNow, 
   s: GameState; q: Question; act: (a: Action) => void; onStage: () => void; onHelp: () => void; onEdit: () => void; onNewMatch: () => void; onPlayNow: () => void;
   roundMode: RoundMode; onRoundChange: (mode: RoundMode) => void; bonus: BonusState; onBonusChange: (next: BonusState) => void; bonusGuess: string; setBonusGuess: (value: string) => void; bonusFeedback: string; submitBonusGuess: () => void;
 }) {
+  const safeBonusQuestions = normalizeBonusQuestions(bonus.questions);
+  const safeBonusIndex = Math.min(4, Math.max(0, Number.isInteger(bonus.index) ? bonus.index : 0));
+  const activeBonusQuestion = safeBonusQuestions[safeBonusIndex] ?? BONUS_DEFAULTS[0];
   const unused = s.questions.filter((x) => !s.usedIds.includes(x.id)).length;
   return (
     <section className="mt-4 rounded-2xl border-2 border-dashed border-border bg-card p-4">
