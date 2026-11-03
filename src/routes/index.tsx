@@ -495,6 +495,7 @@ function Game() {
         setRoundMode("classic");
         localStorage.setItem(ROUND_KEY, "classic");
         setTeamLeg(2);
+        bonusFinishLockRef.current = false;
         setFinalResults(null);
         localStorage.removeItem("kingson-survey-show-final-results-v1");
         setRoundPoints(previous => ({ ...previous, [nextTeam]: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 } }));
@@ -505,6 +506,7 @@ function Game() {
         roundStartScoresRef.current = { ...switched.scores };
         updateTimer({ duration: 60, remaining: 60, running: true, endsAt: Date.now() + 60000 });
       } else if (showCountdown.target === "bonus") {
+        bonusFinishLockRef.current = false;
         changeRound("bonus");
         setAutoPlay(false);
         roundStartScoresRef.current = { ...stateRef.current.scores };
