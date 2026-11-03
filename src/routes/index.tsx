@@ -1377,124 +1377,92 @@ function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch, onPlayNow, 
         </div>
       </div>
 
-      <div className="mb-4 rounded-xl border border-electric/40 bg-muted p-3">
-        <h3 className="mb-2 font-display text-lg text-gold">SHOW ROUNDS</h3>
-        <div className="flex flex-wrap gap-2">
-          {([["classic","Round 1 · Classic ×1"],["double","Round 2 · Double ×2"],["triple","Round 3 · Triple ×3"],["bonus","Kingson Bonus Round"]] as [RoundMode,string][]).map(([mode,label]) => <button key={mode} className={roundMode===mode?btnGold:btnGhost} onClick={()=>onRoundChange(mode)}>{label}</button>)}
-        </div>
-        <p className="mt-2 text-xs text-muted-foreground">{roundMode==="classic"?"Normal survey points.":roundMode==="double"?"Every correct board answer earns double points.":roundMode==="triple"?"Every correct board answer earns triple points.":"Five host-checked questions. Each answer has a different value; five answers total 200 points."}</p>
-      </div>
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Round */}
-        <div className="rounded-xl bg-muted p-3">
-          <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Playing team</h3>
-          <div className="grid grid-cols-2 gap-2">
-            {(["A", "B"] as Team[]).map((t) => (
-              <button key={t} disabled={s.phase !== "play"} onClick={() => act({ type: "setActive", team: t })}
-                className={`${btn} border-2 ${s.active === t ? "border-electric bg-secondary text-secondary-foreground" : "border-border bg-card text-foreground"}`}>
-                {s.teamNames[t]} ({t})
-              </button>
-            ))}
-          </div>
-          <div className="mt-3 text-sm">
-            {s.phase === "play" && <>Strikes: <b className="text-destructive">{s.strikes}/3</b> · Click tiles or press 1–6.</>}
-            
-            {s.phase === "awarded" && <span className="text-muted-foreground">Round finished. The remaining answers are revealed automatically before the next round.</span>}
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <button className={btnDanger} disabled={s.phase === "awarded"} onClick={() => act({ type: "strike" })}>
-              ✕ Strike (X)
-            </button>
-            <button className={btnGhost} disabled={s.phase === "awarded" || (s.phase === "play" && s.strikes === 0)} onClick={() => act({ type: "undoStrike" })}>Undo strike</button>
-          </div>
-          
-        </div>
-
-        {/* Bank */}
-        <div className="rounded-xl bg-muted p-3">
-          <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Round bank: <span className="text-gold text-base">{s.bank}</span></h3>
-          <div className="grid grid-cols-2 gap-2">
-            {(["A", "B"] as Team[]).map((t) => (
-              <button key={t} className={t === s.active ? btnGold : btnGhost} disabled={s.phase === "awarded"} onClick={() => act({ type: "award", team: t })}>
-                Bank to {s.teamNames[t]}{t === s.active ? " (Space)" : ""}
-              </button>
-            ))}
-          </div>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <button className={btnGhost} disabled={s.tiles.every((t) => t !== "hidden")} onClick={() => act({ type: "showAll" })}>Show remaining answers</button>
-            <button className={btnGhost} onClick={() => act({ type: "resetRound" })}>Reset this round</button>
-          </div>
-          <h3 className="mb-2 mt-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">Scores (manual fix)</h3>
-          {(["A", "B"] as Team[]).map((t) => (
-            <div key={t} className="mb-2 flex items-center gap-2">
-              <input aria-label={`Team ${t} name`} className="w-28 flex-1 rounded-md border border-input bg-card px-2 py-1 text-sm" value={s.teamNames[t]}
-                onChange={(e) => act({ type: "renameTeam", team: t, name: e.target.value.toUpperCase() })} />
-              <span className="w-12 text-right font-display text-gold">{s.scores[t]}</span>
-              <button className={btnGhost} onClick={() => act({ type: "adjustScore", team: t, delta: -5 })}>−5</button>
-              <button className={btnGhost} onClick={() => act({ type: "adjustScore", team: t, delta: 5 })}>+5</button>
-            </div>
-          ))}
-        </div>
-
-        {/* Questions */}
-        <div className="rounded-xl bg-muted p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Questions · {unused} unused</h3>
-            <button className="text-xs font-semibold text-electric hover:underline" onClick={onEdit}>Edit current</button>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button className={btnBlue} onClick={() => act({ type: "next" })}>Next question (N)</button>
-            <button className={btnGhost} onClick={() => act({ type: "next", random: true })}>Random (R)</button>
-          </div>
-          {s.bank > 0 && s.phase !== "awarded" && <p className="mt-2 text-xs text-destructive">Bank has {s.bank} unbanked points — moving on discards them.</p>}
-          <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto pr-1 text-sm">
-            {s.questions.map((x, i) => {
-              const used = s.usedIds.includes(x.id);
-              const cur = x.id === q.id;
-              return (
-                <li key={x.id}>
-                  <button disabled={cur} onClick={() => act({ type: "next", id: x.id })}
-                    className={`flex w-full items-center gap-2 rounded-md px-2 py-1 text-left ${cur ? "bg-secondary text-secondary-foreground" : "hover:bg-card"}`}>
-                    <span className="w-5 text-muted-foreground">{i + 1}.</span>
-                    <span className={`flex-1 truncate ${used && !cur ? "text-muted-foreground line-through" : ""}`}>{x.prompt}</span>
-                    <span className="text-[10px] uppercase">{cur ? "live" : used ? "used" : ""}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            {s.gameOver
-              ? <button className={btnGhost} onClick={() => act({ type: "resumeGame" })}>Hide winner</button>
-              : <button className={btnGold} onClick={() => act({ type: "endGame" })}>End game · show winner</button>}
-            <button className={btnDanger} onClick={onNewMatch}>New match…</button>
-          </div>
-        </div>
-      </div>
-
-      {roundMode === "bonus" && (
+      {roundMode === "bonus" ? (
         <div className="mt-4 rounded-xl border-2 border-gold/60 bg-muted p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-display text-xl text-gold">KINGSON BONUS ROUND · HOST ONLY</h3><b className="text-gold">BONUS TOTAL: {bonus.total} pts · {bonus.correctCount}/5 CORRECT</b></div>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-gold">Question {Math.min(safeBonusIndex + 1, 5)} of 5</span>
-            <span className="text-xs text-muted-foreground">A correct answer automatically opens the next question.</span>
-            <button className={btnGhost} onClick={()=>onBonusChange({...bonus,index:0,accepted:[],total:0,responses:["","","","",""],pendingAnswers:["","","","",""],revealed:false,correctCount:0})}>Reset bonus round</button>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="font-display text-xl text-gold">KINGSON BONUS MISSION</h3>
+            <button className={btnBlue} onClick={onStage}>Open audience stage</button>
           </div>
-          <label className="mt-3 block text-xs font-bold uppercase text-muted-foreground">Question shown to viewers</label>
-          <input className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2" value={activeBonusQuestion.prompt} onChange={e=>{const questions=[...safeBonusQuestions];questions[safeBonusIndex]={...questions[safeBonusIndex],prompt:e.target.value};onBonusChange({...bonus,questions});}} />
-          <label className="mt-3 block text-xs font-bold uppercase text-muted-foreground">Private accepted answers · edit these before the show</label>
-          <div className="mt-1 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            {(activeBonusQuestion ?? BONUS_DEFAULTS[0]).answers.map((answer,i)=><div key={i} className="flex min-w-0 gap-1"><input aria-label={"Bonus accepted answer "+(i+1)} className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-2 text-sm" value={answer.text} onChange={e=>{const questions=[...safeBonusQuestions];const answers=[...questions[safeBonusIndex].answers];answers[i]={...answer,text:e.target.value};questions[safeBonusIndex]={...questions[safeBonusIndex],answers};onBonusChange({...bonus,questions});}} /><span className="flex w-16 items-center justify-center rounded-md border border-border bg-card px-1 py-2 text-sm font-semibold text-gold">{answer.points}</span></div>)}
+          <div className="mb-4 flex flex-wrap gap-2">
+            {([["classic","Classic"],["double","Double"],["triple","Triple"]] as [RoundMode,string][]).map(([mode,label]) => <button key={mode} className={btnGhost} onClick={() => onRoundChange(mode)}>{label}</button>)}
+            <button className={btnGold}>Bonus Mission</button>
           </div>
-          <p className={"mt-2 text-xs font-semibold " + (activeBonusQuestion.answers.reduce((sum,a)=>sum+a.points,0)===200?"text-gold":"text-destructive")}>Answer points total: {activeBonusQuestion.answers.reduce((sum,a)=>sum+a.points,0)} / 200</p>
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="grid gap-3">
+            {safeBonusQuestions.map((question,index) => (
+              <div key={index} className={"rounded-lg border p-3 " + (index===safeBonusIndex ? "border-gold bg-card" : "border-border bg-background/50")}>
+                <div className="mb-2 font-semibold text-gold">QUESTION {index+1}</div>
+                <div className="mb-2 font-medium text-foreground">{question.prompt}</div>
+                <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-5">
+                  {question.answers.map((answer,i) => <div key={i} className="rounded-md border border-border bg-background px-2 py-2 text-sm text-foreground">{answer.text} <span className="font-semibold text-gold">· {answer.points}</span></div>)}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-gold">Recording answer for question {safeBonusIndex+1}</span>
             <input className="min-w-0 flex-1 rounded-md border border-input bg-card px-3 py-2" placeholder="Type the viewer's answer…" value={bonusGuess} disabled={Boolean(bonus.pendingAnswers?.[safeBonusIndex]) || bonus.revealed || !timer.running} onChange={e=>setBonusGuess(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();submitBonusGuess();}}} />
             <button className={btnGold} disabled={!bonusGuess.trim() || Boolean(bonus.pendingAnswers?.[safeBonusIndex]) || bonus.revealed || !timer.running} onClick={submitBonusGuess}>Record answer</button>
+            <button className={btnGhost} onClick={()=>onBonusChange({...bonus,index:0,accepted:[],total:0,responses:["","","","",""],pendingAnswers:["","","","",""],revealed:false,correctCount:0})}>Reset</button>
           </div>
-          <p className="mt-2 text-xs font-semibold text-muted-foreground">60-second mission timer: {timer.remaining}s · {(bonus.pendingAnswers ?? []).filter(Boolean).length} / 5 answers recorded privately</p>
-          {bonusFeedback && <p className="mt-2 text-sm font-semibold text-gold">{bonusFeedback}</p>}
-          <p className="mt-2 text-xs text-muted-foreground">Current team: {s.teamNames[s.active]}. The audience never sees this answer key. Each question's five answer values should total exactly 200 points.</p>
         </div>
+      ) : (
+        <>
+          <div className="mb-4 rounded-xl border border-electric/40 bg-muted p-3">
+            <h3 className="mb-2 font-display text-lg text-gold">SHOW ROUNDS</h3>
+            <div className="flex flex-wrap gap-2">
+              {([["classic","Round 1 · Classic ×1"],["double","Round 2 · Double ×2"],["triple","Round 3 · Triple ×3"],["bonus","Kingson Bonus Round"]] as [RoundMode,string][]).map(([mode,label]) => <button key={mode} className={roundMode===mode?btnGold:btnGhost} onClick={()=>onRoundChange(mode)}>{label}</button>)}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">{roundMode==="classic"?"Normal survey points.":roundMode==="double"?"Every correct board answer earns double points.":"Every correct board answer earns triple points."}</p>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-3">
+            {/* Round */}
+            <div className="rounded-xl bg-muted p-3">
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Playing team</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {(["A", "B"] as Team[]).map((t) => (
+                  <button key={t} disabled={s.phase !== "play"} onClick={() => act({ type: "setActive", team: t })}
+                    className={`${btn} border-2 ${s.active === t ? "border-electric bg-secondary text-secondary-foreground" : "border-border bg-card text-foreground"}`}>
+                    {s.teamNames[t]} ({t})
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 text-sm">
+                {s.phase === "play" && <>Strikes: <b className="text-destructive">{s.strikes}/3</b> · Click tiles or press 1–6.</>}
+                {s.phase === "awarded" && <span className="text-muted-foreground">Round finished. The remaining answers are revealed automatically before the next round.</span>}
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button className={btnDanger} disabled={s.phase === "awarded"} onClick={() => act({ type: "strike" })}>✕ Strike (X)</button>
+                <button className={btnGhost} disabled={s.phase === "awarded" || (s.phase === "play" && s.strikes === 0)} onClick={() => act({ type: "undoStrike" })}>Undo strike</button>
+              </div>
+            </div>
+            {/* Bank */}
+            <div className="rounded-xl bg-muted p-3">
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Round bank: <span className="text-gold text-base">{s.bank}</span></h3>
+              <div className="grid grid-cols-2 gap-2">
+                {(["A", "B"] as Team[]).map((t) => <button key={t} className={t === s.active ? btnGold : btnGhost} disabled={s.phase === "awarded"} onClick={() => act({ type: "award", team: t })}>Bank to {s.teamNames[t]}{t === s.active ? " (Space)" : ""}</button>)}
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button className={btnGhost} disabled={s.tiles.every((t) => t !== "hidden")} onClick={() => act({ type: "showAll" })}>Show remaining answers</button>
+                <button className={btnGhost} onClick={() => act({ type: "resetRound" })}>Reset this round</button>
+              </div>
+              <h3 className="mb-2 mt-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">Scores (manual fix)</h3>
+              {(["A", "B"] as Team[]).map((t) => <div key={t} className="mb-2 flex items-center gap-2">
+                <input aria-label={`Team ${t} name`} className="w-28 flex-1 rounded-md border border-input bg-card px-2 py-1 text-sm" value={s.teamNames[t]} onChange={(e) => act({ type: "renameTeam", team: t, name: e.target.value.toUpperCase() })} />
+                <span className="w-12 text-right font-display text-gold">{s.scores[t]}</span>
+                <button className={btnGhost} onClick={() => act({ type: "adjustScore", team: t, delta: -5 })}>−5</button>
+                <button className={btnGhost} onClick={() => act({ type: "adjustScore", team: t, delta: 5 })}>+5</button>
+              </div>)}
+            </div>
+            {/* Questions */}
+            <div className="rounded-xl bg-muted p-3">
+              <div className="mb-2 flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Questions · {unused} unused</h3><button className="text-xs font-semibold text-electric hover:underline" onClick={onEdit}>Edit current</button></div>
+              <div className="grid grid-cols-2 gap-2"><button className={btnBlue} onClick={() => act({ type: "next" })}>Next question (N)</button><button className={btnGhost} onClick={() => act({ type: "next", random: true })}>Random (R)</button></div>
+              {s.bank > 0 && s.phase !== "awarded" && <p className="mt-2 text-xs text-destructive">Bank has {s.bank} unbanked points — moving on discards them.</p>}
+              <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto pr-1 text-sm">{s.questions.map((x, i) => {const used = s.usedIds.includes(x.id);const cur = x.id === q.id;return <li key={x.id}><button disabled={cur} onClick={() => act({ type: "next", id: x.id })} className={`flex w-full items-center gap-2 rounded-md px-2 py-1 text-left ${cur ? "bg-secondary text-secondary-foreground" : "hover:bg-card"}`}><span className="w-5 text-muted-foreground">{i + 1}.</span><span className={`flex-1 truncate ${used && !cur ? "text-muted-foreground line-through" : ""}`}>{x.prompt}</span><span className="text-[10px] uppercase">{cur ? "live" : used ? "used" : ""}</span></button></li>;})}</ul>
+              <div className="mt-3 grid grid-cols-2 gap-2">{s.gameOver ? <button className={btnGhost} onClick={() => act({ type: "resumeGame" })}>Hide winner</button> : <button className={btnGold} onClick={() => act({ type: "endGame" })}>End game · show winner</button>}<button className={btnDanger} onClick={onNewMatch}>New match…</button></div>
+            </div>
+          </div>
+        </>
       )}
       {roundMode !== "bonus" && <AnswerKey s={s} q={q} act={act} />}
     </section>
