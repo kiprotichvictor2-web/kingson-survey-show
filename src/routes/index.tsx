@@ -1186,11 +1186,18 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                 <div className="mt-[1.5cqh] text-muted-foreground" style={{fontSize:"2.3cqh"}}>{bonus.revealed ? "BONUS MISSION COMPLETE · " + bonus.correctCount + "/5 CORRECT" + (bonus.correctCount >= 3 ? " · +500 BONUS POINTS" : "") : "ANSWERS REVEAL WHEN THE 60-SECOND TIMER ENDS"}</div>
               </div>
             ) : <>
+            {roundResult && (
+              <div className="mb-[1cqh] flex shrink-0 items-center justify-center gap-[1.2cqw] rounded-xl border-2 border-gold/70 bg-black/85 px-[2cqw] py-[.7cqh] text-center">
+                <span className="font-display text-white" style={{fontSize:"2.8cqh"}}>{s.teamNames[roundResult.team]} · ROUND SCORE</span>
+                <span className="font-display gold-text" style={{fontSize:"5.2cqh",lineHeight:1}}>+{roundResult.points}</span>
+                <span className="font-display text-gold" style={{fontSize:"2.3cqh"}}>{roundResult.mode.toUpperCase()} {roundResult.mode === "classic" ? "×1" : roundResult.mode === "double" ? "×2" : "×3"}</span>
+              </div>
+            )}
             <div className="mb-[1.5cqh] flex items-center justify-center gap-[1cqw]">
               <span className="font-display text-muted-foreground" style={{ fontSize: "2.4cqh" }}>ROUND BANK</span>
               <span key={s.bank} className="pop font-display gold-text" style={{ fontSize: "5cqh", lineHeight: 1 }}>{s.bank}</span>
             </div>
-            <div className="grid flex-1 min-h-0 grid-cols-1 grid-rows-6 gap-[.7cqh]" style={{ perspective: 800 }}>
+            <div className="grid flex-1 min-h-0 grid-cols-1 grid-rows-6 gap-[.7cqh]" style={{ perspective: 800 })>
               {q.answers.map((ans, i) => {
                 const t = s.tiles[i];
                 return (
@@ -1263,15 +1270,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
           </div>
         </div>
       )}
-      {roundResult && (
-        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/92 px-8 text-center backdrop-blur-md">
-          <div className="font-display tracking-[.25em] text-electric" style={{ fontSize: "4cqh" }}>{roundResult.mode.toUpperCase()} ROUND RESULTS</div>
-          <div className="mt-[2cqh] font-display text-white" style={{ fontSize: "5cqh" }}>{s.teamNames[roundResult.team]}</div>
-          <div className="mt-[1cqh] font-display gold-text" style={{ fontSize: "18cqh", lineHeight: 1 }}>+{roundResult.points}</div>
-          <div className="mt-[1cqh] font-display text-gold" style={{ fontSize: "3cqh" }}>{roundResult.mode === "classic" ? "NORMAL POINTS" : roundResult.mode === "double" ? "DOUBLE POINTS ×2" : "TRIPLE POINTS ×3"}</div>
-          <div className="mt-[2cqh] text-white/70" style={{ fontSize: "2.5cqh" }}>ROUND SCORE · NOT THE MATCH TOTAL</div>
-        </div>
-      )}
+
       {flash && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-destructive/15">
           <span className="pop font-display text-destructive" style={{ fontSize: "40cqh", lineHeight: 1, textShadow: "0 0 40px var(--destructive)" }}>✕</span>
