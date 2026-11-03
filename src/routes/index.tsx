@@ -1139,9 +1139,9 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
 .ks-question{border:1px solid rgba(245,190,82,.62);background:linear-gradient(110deg,rgba(12,19,31,.92),rgba(65,32,94,.88),rgba(29,22,39,.92));box-shadow:0 10px 35px rgba(0,0,0,.3),0 0 24px rgba(245,185,66,.11),inset 0 1px rgba(255,255,255,.12);backdrop-filter:blur(12px)}
 .ks-tile{position:relative;overflow:hidden;border:1px solid rgba(245,190,82,.45);box-shadow:0 8px 18px rgba(0,0,0,.3),inset 0 1px rgba(255,255,255,.12);transition:transform .28s ease,filter .28s ease,box-shadow .28s ease;transform-style:preserve-3d}
 .ks-tile:hover:not(:disabled){transform:translateY(-3px) scale(1.015);filter:brightness(1.2);box-shadow:0 12px 28px rgba(0,0,0,.4),0 0 18px rgba(180,110,255,.22)}
-.ks-tile.tile-closed{background:linear-gradient(135deg,#3b1b59,#241136 55%,#31164b)}
-.ks-tile.tile-open{background:linear-gradient(115deg,rgba(151,103,30,.98),rgba(44,57,68,.98) 58%,rgba(91,45,122,.98));animation:ks-tile-in .55s cubic-bezier(.2,.8,.2,1) both,ks-glow 3.2s ease-in-out infinite .55s}
-.ks-tile.tile-shown{background:linear-gradient(115deg,rgba(48,34,64,.96),rgba(26,16,38,.96));opacity:.88;animation:ks-tile-in .45s ease-out both}
+.ks-tile.tile-closed{background:#050505}
+.ks-tile.tile-open{background:#050505;animation:ks-tile-in .55s cubic-bezier(.2,.8,.2,1) both,ks-glow 3.2s ease-in-out infinite .55s}
+.ks-tile.tile-shown{background:#050505;opacity:.94;animation:ks-tile-in .45s ease-out both}
 .ks-podium{position:relative;overflow:hidden;background:linear-gradient(155deg,rgba(24,36,53,.92),rgba(7,12,22,.86));box-shadow:0 12px 30px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.08);backdrop-filter:blur(8px);transition:transform .35s ease,box-shadow .35s ease}
 .ks-podium-active{transform:translateY(-3px);box-shadow:0 0 26px rgba(168,85,247,.25),0 14px 32px rgba(0,0,0,.35),inset 0 0 22px rgba(168,85,247,.10)}
 .ks-winner-screen{background:radial-gradient(ellipse at 50% 42%,rgba(91,33,132,.48),transparent 55%),rgba(3,6,13,.94);backdrop-filter:blur(14px)}
@@ -1225,7 +1225,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
               <span className="font-display text-muted-foreground" style={{ fontSize: "2.4cqh" }}>ROUND BANK</span>
               <span key={s.bank} className="pop font-display gold-text" style={{ fontSize: "5cqh", lineHeight: 1 }}>{s.bank}</span>
             </div>
-            <div className="grid flex-1 min-h-0 grid-cols-1 grid-rows-6 gap-[.7cqh]" style={{ perspective: 800 }}>
+            <div className="grid flex-1 min-h-0 grid-cols-1 grid-rows-6 gap-[1.35cqh]" style={{ perspective: 800 }}>
               {q.answers.map((ans, i) => {
                 const t = s.tiles[i];
                 return (
@@ -1233,11 +1233,11 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                     key={`${q.id}-${i}-${t}`}
                     onClick={() => onReveal(i)}
                     disabled={t !== "hidden"}
-                    className={`ks-tile flex min-h-0 items-center rounded-xl px-[2.2cqw] py-[.35cqh] text-left ${t === "hidden" ? "tile-closed cursor-pointer hover:brightness-125" : t === "scored" ? "tile-open" : "tile-shown"}`}
+                    className={`ks-tile flex min-h-0 items-center rounded-xl px-[2.8cqw] py-[.55cqh] text-left ${t === "hidden" ? "tile-closed cursor-pointer hover:brightness-125" : t === "scored" ? "tile-open" : "tile-shown"}`}
                     aria-label={t === "hidden" ? `Reveal answer ${i + 1}` : `${ans.text} ${ans.points}`}
                   >
                     {t === "hidden" ? (
-                      <span className="mx-auto flex aspect-square h-[70%] items-center justify-center rounded-full bg-background/70 font-mono font-semibold tabular-nums text-gold" style={{ fontSize: "5cqh", border: "2px solid var(--gold)" }}>{i + 1}</span>
+                      <span className="mx-auto flex aspect-square h-[70%] items-center justify-center rounded-full bg-background/70 font-mono font-semibold tabular-nums text-gold" style={{ fontSize: "6cqh", border: "2px solid var(--gold)" }}>{i + 1}</span>
                     ) : (
                       <>
                         <span className="mr-[2cqw] flex h-[5.5cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-mono font-semibold tabular-nums text-gold" style={{ fontSize: "3.2cqh" }}>{i + 1}</span>
