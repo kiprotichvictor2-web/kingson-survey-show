@@ -922,18 +922,6 @@ function Game() {
     }
     if (a.type === "reveal" && s.tiles[a.index] === "hidden") {
       playCorrectBell();
-      if (!stageOnly && q.answers[a.index]?.text && "speechSynthesis" in window) {
-        const spokenAnswer = q.answers[a.index].text;
-        window.speechSynthesis.cancel();
-        window.setTimeout(() => {
-          const announcement = new SpeechSynthesisUtterance(`We have ${spokenAnswer} on the board!`);
-          announcement.lang = "en-US";
-          announcement.rate = 0.95;
-          announcement.pitch = 1.05;
-          announcement.volume = 1;
-          window.speechSynthesis.speak(announcement);
-        }, 250);
-      }
     }
     const nextState = reducer(s, a);
     if (a.type === "strike" && nextState.strikes >= 3 && nextState.phase === "awarded") {
