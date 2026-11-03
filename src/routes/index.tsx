@@ -1193,8 +1193,8 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                   {Array.from({ length: 5 }, (_, i) => {
                     const response = bonus.revealed ? (bonus.responses?.[i] ?? "") : "";
                     return <div key={i} className="flex min-h-0 items-center gap-[2cqw] rounded-xl border-2 border-gold/50 bg-slate-950/75 px-[2cqw] py-[.45cqh]">
-                      <span className="flex h-[5.5cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-display font-black text-gold" style={{fontSize:"3.2cqh"}}>{i + 1}</span>
-                      <span className="min-w-0 flex-1 break-words text-left font-bold text-white" style={{fontSize:"3.1cqh",lineHeight:1.12}}>{response || "WAITING FOR ANSWER"}</span>
+                      <span className="flex h-[5.5cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-mono font-semibold tabular-nums text-gold" style={{fontSize:"3.2cqh"}}>{i + 1}</span>
+                      <span className="min-w-0 flex-1 break-words text-left font-sans font-medium tracking-wide text-white" style={{fontSize:"3.1cqh",lineHeight:1.12}}>{response || "WAITING FOR ANSWER"}</span>
                       <span className="shrink-0 rounded-lg bg-amber-400/15 px-[2cqw] py-[.5cqh] font-display font-black text-gold" style={{fontSize:"3.2cqh"}}>{response ? "+" + (safeBonusQuestions[i].answers.find(a => a.text === response)?.points ?? 0) : "—"}</span>
                     </div>;
                   })}
@@ -1225,11 +1225,11 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                     aria-label={t === "hidden" ? `Reveal answer ${i + 1}` : `${ans.text} ${ans.points}`}
                   >
                     {t === "hidden" ? (
-                      <span className="mx-auto flex aspect-square h-[70%] items-center justify-center rounded-full bg-background/70 font-display text-gold" style={{ fontSize: "5cqh", border: "2px solid var(--gold)" }}>{i + 1}</span>
+                      <span className="mx-auto flex aspect-square h-[70%] items-center justify-center rounded-full bg-background/70 font-mono font-semibold tabular-nums text-gold" style={{ fontSize: "5cqh", border: "2px solid var(--gold)" }}>{i + 1}</span>
                     ) : (
                       <>
-                        <span className="mr-[2cqw] flex h-[5.5cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-display font-black text-gold" style={{ fontSize: "3.2cqh" }}>{i + 1}</span>
-                        <span className="min-w-0 flex-1 break-words font-display font-bold uppercase text-white" style={{ fontSize: "3.4cqh", lineHeight: 1.08 }}>{ans.text}</span>
+                        <span className="mr-[2cqw] flex h-[5.5cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-mono font-semibold tabular-nums text-gold" style={{ fontSize: "3.2cqh" }}>{i + 1}</span>
+                        <span className="min-w-0 flex-1 break-words font-sans font-medium tracking-wide uppercase text-white" style={{ fontSize: "3.4cqh", lineHeight: 1.08 }}>{ans.text}</span>
                         <span className={`ml-[2cqw] flex h-[5.5cqh] min-w-[5.5cqh] shrink-0 items-center justify-center rounded-lg px-[1cqw] font-display font-black ${t === "scored" ? "bg-primary-foreground text-primary" : "bg-slate-950/70 text-gold"}`} style={{ fontSize: "3.5cqh" }}>{ans.points}</span>
                       </>
                     )}
