@@ -158,7 +158,7 @@ function Game() {
   const [timer, setTimer] = useState<TimerState>({ duration: 60, remaining: 60, running: false, endsAt: null });
   const [roundMode, setRoundMode] = useState<RoundMode>("classic");
   const [roundQuestions, setRoundQuestions] = useState<RoundQuestionsByTeam | null>(null);
-  const [bonus, setBonus] = useState<BonusState>({ questions: BONUS_DEFAULTS, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0 });
+  const [bonus, setBonus] = useState<BonusState>({ questions: BONUS_DEFAULTS, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0, pendingAnswers: ["", "", "", "", ""], revealed: false });
   const [bonusGuess, setBonusGuess] = useState("");
   const [bonusFeedback, setBonusFeedback] = useState("");
   const [showCountdown, setShowCountdown] = useState<{ remaining: number; target: CountdownTarget } | null>(null);
@@ -216,7 +216,7 @@ function Game() {
       });
       setAutoPlay(false);
       transitionLockRef.current = false;
-      const freshBonus = { ...bonus, questions: drawBonusQuestions(), index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0 };
+      const freshBonus = { ...bonus, questions: drawBonusQuestions(), index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0, pendingAnswers: ["", "", "", "", ""], revealed: false };
       setBonus(freshBonus);
       localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus));
       return;
@@ -301,7 +301,7 @@ function Game() {
     setRoundMode(mode);
     localStorage.setItem(ROUND_KEY, mode);
     if (mode === "bonus") {
-      const freshBonus = { ...bonus, questions: drawBonusQuestions(), index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0 };
+      const freshBonus = { ...bonus, questions: drawBonusQuestions(), index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0, pendingAnswers: ["", "", "", "", ""], revealed: false };
       setBonus(freshBonus);
       localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus));
       setBonusGuess("");
@@ -432,7 +432,7 @@ function Game() {
           setFinalResults(null);
           localStorage.removeItem("kingson-survey-show-final-results-v1");
           setRoundPoints((previous) => ({ ...previous, [nextTeam]: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 } }));
-          const freshBonus = { ...bonus, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0 };
+          const freshBonus = { ...bonus, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0, pendingAnswers: ["", "", "", "", ""], revealed: false };
           setBonus(freshBonus);
           localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus));
           setAutoPlay(true);
@@ -989,7 +989,7 @@ function Game() {
           <p className="text-muted-foreground">Both team scores go back to 0 and all questions become unused. Your edited questions are kept.</p>
           <div className="mt-5 flex justify-end gap-2">
             <button className={btnGhost} onClick={() => setConfirmNew(false)}>Cancel</button>
-            <button className={btnDanger} onClick={() => { const fresh = reducer(s, { type: "newMatch" }); const drawnIds = drawSurveyIds(fresh.questions); const assignments: RoundQuestionsByTeam = { A: { classic: drawnIds[0] ?? fresh.currentId, double: drawnIds[1] ?? fresh.currentId, triple: drawnIds[2] ?? fresh.currentId }, B: { classic: drawnIds[3] ?? fresh.currentId, double: drawnIds[4] ?? fresh.currentId, triple: drawnIds[5] ?? fresh.currentId } }; const started = reducer({ ...fresh, usedIds: [] }, { type: "next", id: assignments.A.classic }); dispatch({ type: "__load", s: started }); setRoundQuestions(assignments); localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments)); setTeamLeg(1); setFinalResults(null); localStorage.setItem(GAME_STARTED_KEY, "false"); setAudienceGameStarted(false); localStorage.removeItem("kingson-survey-show-final-results-v1"); setRoundPoints({ A: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 }, B: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 } }); setAutoPlay(false); setRoundResult(null); setShowCountdown(null); setRoundMode("classic"); localStorage.setItem(ROUND_KEY, "classic"); const freshBonus = { ...bonus, questions: drawBonusQuestions(), index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0 }; setBonus(freshBonus); localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus)); setTimer({ duration: 60, remaining: 60, running: false, endsAt: null }); localStorage.setItem(TIMER_KEY, JSON.stringify({ duration: 60, remaining: 60, running: false, endsAt: null })); setConfirmNew(false); }}>Yes, new match</button>
+            <button className={btnDanger} onClick={() => { const fresh = reducer(s, { type: "newMatch" }); const drawnIds = drawSurveyIds(fresh.questions); const assignments: RoundQuestionsByTeam = { A: { classic: drawnIds[0] ?? fresh.currentId, double: drawnIds[1] ?? fresh.currentId, triple: drawnIds[2] ?? fresh.currentId }, B: { classic: drawnIds[3] ?? fresh.currentId, double: drawnIds[4] ?? fresh.currentId, triple: drawnIds[5] ?? fresh.currentId } }; const started = reducer({ ...fresh, usedIds: [] }, { type: "next", id: assignments.A.classic }); dispatch({ type: "__load", s: started }); setRoundQuestions(assignments); localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments)); setTeamLeg(1); setFinalResults(null); localStorage.setItem(GAME_STARTED_KEY, "false"); setAudienceGameStarted(false); localStorage.removeItem("kingson-survey-show-final-results-v1"); setRoundPoints({ A: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 }, B: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 } }); setAutoPlay(false); setRoundResult(null); setShowCountdown(null); setRoundMode("classic"); localStorage.setItem(ROUND_KEY, "classic"); const freshBonus = { ...bonus, questions: drawBonusQuestions(), index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0, pendingAnswers: ["", "", "", "", ""], revealed: false }; setBonus(freshBonus); localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus)); setTimer({ duration: 60, remaining: 60, running: false, endsAt: null }); localStorage.setItem(TIMER_KEY, JSON.stringify({ duration: 60, remaining: 60, running: false, endsAt: null })); setConfirmNew(false); }}>Yes, new match</button>
           </div>
         </Modal>
       )}
