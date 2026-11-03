@@ -400,7 +400,7 @@ function Game() {
     setFinalResults(final);
     localStorage.setItem("kingson-survey-show-final-results-v1", JSON.stringify(final));
     setAutoPlay(false);
-    if (!finalMatch) beginCountdown("handover", 30); else playRoundWinFanfare();
+    if (finalMatch) playRoundWinFanfare();
   };
   const updateTimer = (next: TimerState) => {
     setTimer(next);
@@ -452,6 +452,11 @@ function Game() {
     }, 3000);
     return () => window.clearTimeout(timeout);
   }, [roundResult, stageOnly]);
+  useEffect(() => {
+    if (!finalResults || finalResults.finalMatch || stageOnly || showCountdown) return;
+    const timeout = window.setTimeout(() => beginCountdown("handover", 30), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [finalResults, stageOnly, showCountdown]);
   useEffect(() => {
     if (!showCountdown || stageOnly) return;
     const interval = window.setInterval(() => {
@@ -1263,7 +1268,19 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
         )}
       </div>
 
-      {finalResults && (
+      {showCountdown?.target === "handover" && (
+        <div className="ks-final-show absolute inset-0 z-[60] flex flex-col items-center justify-center overflow-hidden px-5 py-4 text-center">
+          <div className="ks-final-rays pointer-events-none absolute inset-0" />
+          <div className="relative z-10 flex w-full max-w-3xl flex-col items-center">
+            <div className="mx-auto mb-5 flex items-center justify-center"><LionCrest className="h-[15cqh] w-[15cqh]" /></div>
+            <div className="font-display font-black uppercase tracking-[.12em] text-white" style={{fontSize:"clamp(2rem,7cqh,4rem)",lineHeight:1.08}}>NEXT TEAM,<br/><span className="gold-text">GET READY!</span></div>
+            <div className="mt-5 font-display uppercase tracking-[.16em] text-purple-200" style={{fontSize:"clamp(1rem,3cqh,1.6rem)"}}>{s.teamNames[s.active === "A" ? "B" : "A"]}</div>
+            <div className="mt-7 font-display font-black leading-none text-gold drop-shadow-[0_0_35px_rgba(245,190,82,.7)]" style={{fontSize:"clamp(5rem,24cqh,11rem)"}}>{showCountdown.remaining}</div>
+            <div className="mt-4 font-display uppercase tracking-[.22em] text-white" style={{fontSize:"clamp(.8rem,2.8cqh,1.3rem)"}}>SECONDS TO TAKE THE STAGE</div>
+          </div>
+        </div>
+      )}
+      {finalResults && showCountdown?.target !== "handover" && (
         <div className="ks-final-show absolute inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto px-5 py-4 text-center">
           <div className="ks-final-rays pointer-events-none absolute inset-0" />
           <div className="relative z-10 w-full max-w-4xl">
