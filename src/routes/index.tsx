@@ -191,6 +191,7 @@ function Game() {
   });
   const roundStartScoresRef = useRef<Record<Team, number>>({ A: 0, B: 0 });
   const transitionLockRef = useRef(false);
+  const bonusFinishLockRef = useRef(false);
 
   useEffect(() => {
     const isStage = new URLSearchParams(window.location.search).get("stage") === "1";
@@ -305,7 +306,7 @@ function Game() {
     };
     const syncTimer = (event: StorageEvent) => { if (event.key === TIMER_KEY && event.newValue) { try { setTimer(JSON.parse(event.newValue) as TimerState); } catch { /* Ignore invalid updates. */ } } };
     const syncRound = (event: StorageEvent) => { if (event.key === ROUND_KEY && event.newValue) setRoundMode(event.newValue as RoundMode); };
-    const syncBonus = (event: StorageEvent) => { if (event.key === BONUS_STORAGE_KEY && event.newValue) { try { setBonus(JSON.parse(event.newValue) as BonusState); } catch { /* Ignore invalid updates. */ } } };
+    const syncBonus = (event: StorageEvent) => { if (event.key === BONUS_STORAGE_KEY && event.newValue) { try { const parsed = JSON.parse(event.newValue) as Partial<BonusState>; setBonus({ questions: normalizeBonusQuestions(parsed.questions), index: Number.isInteger(parsed.index) ? Math.min(4, Math.max(0, Number(parsed.index))) : 0, accepted: Array.isArray(parsed.accepted) ? parsed.accepted.filter((x): x is string => typeof x === "string") : [], total: Number.isFinite(parsed.total) ? Number(parsed.total) : 0, responses: Array.from({ length: 5 }, (_, i) => typeof parsed.responses?.[i] === "string" ? parsed.responses[i] as string : ""), pendingAnswers: Array.from({ length: 5 }, (_, i) => typeof parsed.pendingAnswers?.[i] === "string" ? parsed.pendingAnswers[i] as string : ""), revealed: Boolean(parsed.revealed), correctCount: Number.isFinite(parsed.correctCount) ? Number(parsed.correctCount) : 0 }); } catch { /* Ignore invalid updates. */ } } };
     const syncCountdown = (event: StorageEvent) => { if (event.key === "kingson-survey-show-countdown-v1") { try { setShowCountdown(event.newValue ? JSON.parse(event.newValue) : null); } catch { /* Ignore invalid updates. */ } } };
     const syncGameStarted = (event: StorageEvent) => { if (event.key === GAME_STARTED_KEY) setAudienceGameStarted(event.newValue === "true"); };
     const syncResult = (event: StorageEvent) => { if (event.key === RESULT_KEY) { try { setRoundResult(event.newValue ? JSON.parse(event.newValue) as RoundResult : null); } catch { /* Ignore invalid updates. */ } } };
@@ -371,7 +372,7 @@ function Game() {
     const pendingAnswers = bonus.pendingAnswers ?? ["", "", "", "", ""];
     let correctCount = 0;
     let total = 0;
-    const responses = bonus.questions.map((question, index) => {
+    const responses = questions.map((question, index) => {
       const guess = pendingAnswers[index]?.trim();
       if (!guess) return "No answer";
       const match = question.answers.find((answer) => answerMatches(guess, answer.text));
@@ -381,12 +382,12 @@ function Game() {
     const extraBonus = correctCount >= 3 ? 500 : 0;
     const team = s.active;
     const pointsEarned = total + extraBonus;
-    const accepted = bonus.questions.flatMap((question, index) => {
+    const accepted = questions.flatMap((question, index) => {
       const guess = pendingAnswers[index]?.trim();
       const match = guess ? question.answers.find((answer) => answerMatches(guess, answer.text)) : undefined;
       return match ? [index + ":" + normText(match.text)] : [];
     });
-    updateBonus({ ...bonus, index: 4, pendingAnswers, responses, accepted, total, correctCount, revealed: true });
+    updateBonus({ ...bonus, questions, index: 4, pendingAnswers, responses, accepted, total, correctCount, revealed: true });
     if (pointsEarned > 0) actRef.current({ type: "adjustScore", team, delta: pointsEarned });
     setBonusFeedback("Bonus Mission complete: " + correctCount + "/5 correct. " + total + " points" + (extraBonus ? " + 500 bonus points." : "."));
     if (correctCount > 0) playAudienceApplause();
