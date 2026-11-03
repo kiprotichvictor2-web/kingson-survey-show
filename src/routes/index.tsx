@@ -1004,8 +1004,8 @@ function Game() {
           </div>
         </div>
       )}
-      <div className={stageOnly ? "flex h-screen items-center justify-center bg-background" : "mx-auto max-w-[1500px] p-3 lg:p-5"}>
-        <div className={(stageOnly ? "aspect-[9/16] w-[min(100vw,56.25vh)] max-h-screen" : "mx-auto aspect-[9/16] w-full max-w-[560px]") + " relative"}>
+      <div className={stageOnly ? "flex h-screen items-center justify-center bg-background" : "mx-auto flex flex-col gap-4 p-3 lg:max-w-[1500px] lg:flex-row lg:items-start lg:p-5"}>
+        <div className={(stageOnly ? "aspect-[9/16] w-[min(100vw,56.25vh)] max-h-screen" : "mx-auto aspect-[9/16] w-full max-w-[560px] lg:mx-0 lg:w-[min(38vw,440px)] lg:flex-none") + " relative"}>
           {(!stageOnly && !audienceGameStarted) ? (
             <div className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-yellow-300/60 bg-[#090411] px-6 text-center shadow-[0_0_45px_rgba(234,179,8,.2)]">
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(91,33,132,0.5),transparent_62%)]" />
@@ -1320,7 +1320,7 @@ function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch, onPlayNow, 
   const activeBonusQuestion = safeBonusQuestions[safeBonusIndex] ?? BONUS_DEFAULTS[0];
   const unused = s.questions.filter((x) => !s.usedIds.includes(x.id)).length;
   return (
-    <section className="mt-4 rounded-2xl border-2 border-dashed border-border bg-card p-4">
+    <section className="mt-0 min-w-0 rounded-2xl border-2 border-dashed border-border bg-card p-4 lg:max-h-[calc(100vh-2.5rem)] lg:flex-1 lg:overflow-y-auto">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-xl tracking-wide text-gold">HOST CONTROLS <span className="ml-2 font-sans text-xs font-normal text-muted-foreground">not part of the show — open Stage view in a second tab when streaming</span></h2>
         <div className="flex flex-wrap gap-2">
