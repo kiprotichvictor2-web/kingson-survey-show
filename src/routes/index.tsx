@@ -119,6 +119,22 @@ function drawBonusQuestions(): BonusQuestion[] {
   localStorage.setItem(BONUS_USED_KEY, JSON.stringify(nextUsed));
   return picked;
 }
+function normalizeBonusQuestions(value: unknown): BonusQuestion[] {
+  const source = Array.isArray(value) ? value : [];
+  return Array.from({ length: 5 }, (_, index) => {
+    const fallback = BONUS_DEFAULTS[index % BONUS_DEFAULTS.length] ?? BONUS_DEFAULTS[0];
+    const candidate = source[index] as Partial<BonusQuestion> | undefined;
+    if (!candidate || typeof candidate.prompt !== "string" || !candidate.prompt.trim() || !Array.isArray(candidate.answers)) return structuredClone(fallback);
+    const answers = Array.from({ length: 5 }, (_, answerIndex) => {
+      const raw = candidate.answers?.[answerIndex] as Partial<BonusAnswer> | string | undefined;
+      const defaultAnswer = fallback.answers[answerIndex];
+      if (typeof raw === "string") return { text: raw, points: defaultAnswer.points };
+      if (!raw || typeof raw.text !== "string") return { ...defaultAnswer };
+      return { text: raw.text, points: Number.isFinite(raw.points) ? Number(raw.points) : defaultAnswer.points };
+    });
+    return { prompt: candidate.prompt, answers };
+  });
+}
 function drawSurveyIds(questions: Question[]): string[] {
   let used: string[] = [];
   try { used = JSON.parse(localStorage.getItem(SURVEY_USED_KEY) ?? "[]") as string[]; } catch { used = []; }
@@ -249,7 +265,29 @@ function Game() {
     try { const savedRound = localStorage.getItem(ROUND_KEY); if (savedRound) setRoundMode(savedRound as RoundMode); } catch { /* Keep default. */ }
     try { const savedResult = localStorage.getItem(RESULT_KEY); if (savedResult) setRoundResult(JSON.parse(savedResult) as RoundResult); } catch { /* Keep default. */ }
     try { const savedFinal = localStorage.getItem("kingson-survey-show-final-results-v1"); if (savedFinal) setFinalResults(JSON.parse(savedFinal) as FinalResults); } catch { /* Keep default. */ }
-    try { const savedBonus = localStorage.getItem(BONUS_STORAGE_KEY); if (savedBonus) { const parsed = JSON.parse(savedBonus) as BonusState; const migratedQuestions = Array.isArray(parsed.questions) && parsed.questions.length > 0 ? parsed.questions.map((question) => ({ ...question, answers: Array.isArray(question.answers) ? (question.answers as unknown[]).map((answer, ai) => typeof answer === "string" ? { text: answer, points: [64,51,37,27,21][ai] ?? 21 } : answer as BonusAnswer) : BONUS_DEFAULTS[0].answers })) : drawBonusQuestions(); const safeQuestions = migratedQuestions.length > 0 ? migratedQuestions : BONUS_DEFAULTS; const safeIndex = Number.isInteger(parsed.index) ? Math.min(4, Math.max(0, parsed.index)) : 0; setBonus({ ...parsed, questions: safeQuestions, index: safeIndex, responses: Array.isArray(parsed.responses) ? parsed.responses : ["", "", "", "", ""], pendingAnswers: Array.isArray(parsed.pendingAnswers) ? parsed.pendingAnswers : ["", "", "", "", ""], revealed: Boolean(parsed.revealed), correctCount: Number.isFinite(parsed.correctCount) ? parsed.correctCount : (Array.isArray(parsed.responses) ? parsed.responses.filter((response) => response && response !== "No answer").length : 0) }); } } catch { /* Keep defaults. */ }
+    try {
+      const savedBonus = localStorage.getItem(BONUS_STORAGE_KEY);
+      if (savedBonus) {
+        const parsed = JSON.parse(savedBonus) as Partial<BonusState>;
+        const questions = normalizeBonusQuestions(parsed.questions);
+        const index = Number.isInteger(parsed.index) ? Math.min(4, Math.max(0, Number(parsed.index))) : 0;
+        const safeBonus: BonusState = {
+          questions, index,
+          accepted: Array.isArray(parsed.accepted) ? parsed.accepted.filter((x): x is string => typeof x === "string") : [],
+          total: Number.isFinite(parsed.total) ? Number(parsed.total) : 0,
+          responses: Array.isArray(parsed.responses) ? Array.from({length:5},(_,i)=>typeof parsed.responses?.[i]==="string"?parsed.responses[i] as string:"") : ["","","","",""],
+          pendingAnswers: Array.isArray(parsed.pendingAnswers) ? Array.from({length:5},(_,i)=>typeof parsed.pendingAnswers?.[i]==="string"?parsed.pendingAnswers[i] as string:"") : ["","","","",""],
+          revealed: Boolean(parsed.revealed),
+          correctCount: Number.isFinite(parsed.correctCount) ? Number(parsed.correctCount) : 0,
+        };
+        setBonus(safeBonus);
+        localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(safeBonus));
+      }
+    } catch {
+      const safeBonus = { ...bonus, questions: normalizeBonusQuestions(null), index: 0, accepted: [], total: 0, responses: ["","","","",""], pendingAnswers: ["","","","",""], revealed: false, correctCount: 0 };
+      setBonus(safeBonus);
+      localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(safeBonus));
+    }
   }, []);
   // Synchronize the host tab and audience stage tab on the same computer.
   useEffect(() => {
@@ -471,16 +509,23 @@ function Game() {
     if (s.phase === "awarded" && nextHidden >= 0) {
       const revealTimer = window.setTimeout(() => {
         actRef.current({ type: "reveal", index: nextHidden });
-      }, 1000);
+      }, 2000);
       return () => window.clearTimeout(revealTimer);
     }
 
     const allRevealed = s.tiles.length > 0 && s.tiles.every((tile) => tile !== "hidden");
     if (s.phase === "awarded" && allRevealed) {
-      if (roundMode === "classic") finishMainRound("classic", "double", 3);
-      else if (roundMode === "double") finishMainRound("double", "triple", 3);
-      else if (roundMode === "triple") finishMainRound("triple", "bonus", 5);
-      return;
+      transitionLockRef.current = true;
+      const postRevealPause = window.setTimeout(() => {
+        transitionLockRef.current = false;
+        if (roundMode === "classic") finishMainRound("classic", "double", 3);
+        else if (roundMode === "double") finishMainRound("double", "triple", 3);
+        else if (roundMode === "triple") finishMainRound("triple", "bonus", 5);
+      }, 2000);
+      return () => {
+        window.clearTimeout(postRevealPause);
+        transitionLockRef.current = false;
+      };
     }
     if (allRevealed) {
       if (roundMode === "classic") finishMainRound("classic", "double", 3);
@@ -1040,6 +1085,8 @@ function LionCrest({ className = "" }: { className?: string }) {
 
 function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResult, finalResults, showCountdown }: { audienceWaiting: boolean; s: GameState; q: Question; strikeFlash: number; timer: TimerState; onReveal: (i: number) => void; roundMode: RoundMode; bonus: BonusState; roundResult: RoundResult | null; finalResults: FinalResults | null; showCountdown: { remaining: number; target: CountdownTarget } | null }) {
   const [flash, setFlash] = useState(false);
+  const safeBonusQuestions = normalizeBonusQuestions(bonus.questions);
+  const activeBonusQuestion = safeBonusQuestions[Math.min(4, Math.max(0, bonus.index))] ?? BONUS_DEFAULTS[0];
   useEffect(() => {
     if (!strikeFlash) return;
     setFlash(true);
@@ -1112,7 +1159,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
 
         {/* question */}
         <div className="ks-question mt-[2cqh] rounded-xl px-[2cqw] py-[1.8cqh] text-center">
-          <h1 className="font-display uppercase leading-tight tracking-wide" style={{ fontSize: "4.6cqh" }}>{roundMode === "bonus" ? (bonus.questions[bonus.index] ?? BONUS_DEFAULTS[0]).prompt : q.prompt}</h1>
+          <h1 className="font-display uppercase leading-tight tracking-wide" style={{ fontSize: "4.6cqh" }}>{roundMode === "bonus" ? activeBonusQuestion.prompt : q.prompt}</h1>
         </div>
 
         {/* body */}
@@ -1132,7 +1179,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                     return <div key={i} className="flex min-h-0 items-center gap-[2cqw] rounded-xl border-2 border-gold/50 bg-slate-950/75 px-[2cqw] py-[.45cqh]">
                       <span className="flex h-[5.5cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-display font-black text-gold" style={{fontSize:"3.2cqh"}}>{i + 1}</span>
                       <span className="min-w-0 flex-1 break-words text-left font-bold text-white" style={{fontSize:"3.1cqh",lineHeight:1.12}}>{response || "WAITING FOR ANSWER"}</span>
-                      <span className="shrink-0 rounded-lg bg-amber-400/15 px-[2cqw] py-[.5cqh] font-display font-black text-gold" style={{fontSize:"3.2cqh"}}>{response ? "+" + (bonus.questions[i].answers.find(a => a.text === response)?.points ?? 0) : "—"}</span>
+                      <span className="shrink-0 rounded-lg bg-amber-400/15 px-[2cqw] py-[.5cqh] font-display font-black text-gold" style={{fontSize:"3.2cqh"}}>{response ? "+" + (safeBonusQuestions[i].answers.find(a => a.text === response)?.points ?? 0) : "—"}</span>
                     </div>;
                   })}
                 </div>
@@ -1378,20 +1425,20 @@ function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch, onPlayNow, 
         <div className="mt-4 rounded-xl border-2 border-gold/60 bg-muted p-4">
           <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-display text-xl text-gold">KINGSON BONUS ROUND · HOST ONLY</h3><b className="text-gold">BONUS TOTAL: {bonus.total} pts · {bonus.correctCount}/5 CORRECT</b></div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-gold">Question {Math.min(bonus.index + 1, 5)} of 5</span>
+            <span className="text-sm font-semibold text-gold">Question {Math.min(safeBonusIndex + 1, 5)} of 5</span>
             <span className="text-xs text-muted-foreground">A correct answer automatically opens the next question.</span>
             <button className={btnGhost} onClick={()=>onBonusChange({...bonus,index:0,accepted:[],total:0,responses:["","","","",""],pendingAnswers:["","","","",""],revealed:false,correctCount:0})}>Reset bonus round</button>
           </div>
           <label className="mt-3 block text-xs font-bold uppercase text-muted-foreground">Question shown to viewers</label>
-          <input className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2" value={bonus.questions[bonus.index].prompt} onChange={e=>{const questions=[...bonus.questions];questions[bonus.index]={...questions[bonus.index],prompt:e.target.value};onBonusChange({...bonus,questions});}} />
+          <input className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2" value={activeBonusQuestion.prompt} onChange={e=>{const questions=[...safeBonusQuestions];questions[safeBonusIndex]={...questions[safeBonusIndex],prompt:e.target.value};onBonusChange({...bonus,questions});}} />
           <label className="mt-3 block text-xs font-bold uppercase text-muted-foreground">Private accepted answers · edit these before the show</label>
           <div className="mt-1 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            {(bonus.questions[bonus.index] ?? BONUS_DEFAULTS[0]).answers.map((answer,i)=><div key={i} className="flex min-w-0 gap-1"><input aria-label={"Bonus accepted answer "+(i+1)} className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-2 text-sm" value={answer.text} onChange={e=>{const questions=[...bonus.questions];const answers=[...questions[bonus.index].answers];answers[i]={...answer,text:e.target.value};questions[bonus.index]={...questions[bonus.index],answers};onBonusChange({...bonus,questions});}} /><span className="flex w-16 items-center justify-center rounded-md border border-border bg-card px-1 py-2 text-sm font-semibold text-gold">{answer.points}</span></div>)}
+            {(activeBonusQuestion ?? BONUS_DEFAULTS[0]).answers.map((answer,i)=><div key={i} className="flex min-w-0 gap-1"><input aria-label={"Bonus accepted answer "+(i+1)} className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-2 text-sm" value={answer.text} onChange={e=>{const questions=[...safeBonusQuestions];const answers=[...questions[safeBonusIndex].answers];answers[i]={...answer,text:e.target.value};questions[safeBonusIndex]={...questions[safeBonusIndex],answers};onBonusChange({...bonus,questions});}} /><span className="flex w-16 items-center justify-center rounded-md border border-border bg-card px-1 py-2 text-sm font-semibold text-gold">{answer.points}</span></div>)}
           </div>
-          <p className={"mt-2 text-xs font-semibold " + (bonus.questions[bonus.index].answers.reduce((sum,a)=>sum+a.points,0)===200?"text-gold":"text-destructive")}>Answer points total: {bonus.questions[bonus.index].answers.reduce((sum,a)=>sum+a.points,0)} / 200</p>
+          <p className={"mt-2 text-xs font-semibold " + (activeBonusQuestion.answers.reduce((sum,a)=>sum+a.points,0)===200?"text-gold":"text-destructive")}>Answer points total: {activeBonusQuestion.answers.reduce((sum,a)=>sum+a.points,0)} / 200</p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <input className="min-w-0 flex-1 rounded-md border border-input bg-card px-3 py-2" placeholder="Type the viewer's answer…" value={bonusGuess} disabled={Boolean(bonus.pendingAnswers?.[bonus.index]) || bonus.revealed || !timer.running} onChange={e=>setBonusGuess(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();submitBonusGuess();}}} />
-            <button className={btnGold} disabled={!bonusGuess.trim() || Boolean(bonus.pendingAnswers?.[bonus.index]) || bonus.revealed || !timer.running} onClick={submitBonusGuess}>Record answer</button>
+            <input className="min-w-0 flex-1 rounded-md border border-input bg-card px-3 py-2" placeholder="Type the viewer's answer…" value={bonusGuess} disabled={Boolean(bonus.pendingAnswers?.[safeBonusIndex]) || bonus.revealed || !timer.running} onChange={e=>setBonusGuess(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();submitBonusGuess();}}} />
+            <button className={btnGold} disabled={!bonusGuess.trim() || Boolean(bonus.pendingAnswers?.[safeBonusIndex]) || bonus.revealed || !timer.running} onClick={submitBonusGuess}>Record answer</button>
           </div>
           <p className="mt-2 text-xs font-semibold text-muted-foreground">60-second mission timer: {timer.remaining}s · {(bonus.pendingAnswers ?? []).filter(Boolean).length} / 5 answers recorded privately</p>
           {bonusFeedback && <p className="mt-2 text-sm font-semibold text-gold">{bonusFeedback}</p>}
