@@ -1542,19 +1542,63 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
 }
 
 function HelpOverlay({ onClose }: { onClose: () => void }) {
-  const keys: [string, string][] = [["1 – 6", "Reveal answer tile"], ["X", "Strike (or failed steal)"], ["A / B", "Choose playing team"], ["Space / Enter", "Bank round to playing team"], ["N", "Next unused question"], ["R", "Random question"], ["S", "Toggle stage view"], ["H", "This help"], ["Esc", "Close / exit stage view"]];
+  const keys: [string, string][] = [
+    ["1 – 6", "Reveal answer tiles 1 to 6"],
+    ["X", "Give a strike / mark a steal wrong"],
+    ["A / B", "Select the playing team"],
+    ["Space / Enter", "Award the round bank to the active team"],
+    ["N", "Move to the next unused question (host control)"],
+    ["R", "Choose a random question (host control)"],
+    ["S", "Open or close Stage view"],
+    ["H / ?", "Open or close these rules"],
+    ["Esc", "Close this panel / leave Stage view"],
+  ];
   return (
-    <Modal title="How to play" onClose={onClose}>
-      <ol className="list-decimal space-y-1 pl-5 text-sm">
-        <li>Read the survey question. Viewers shout answers in the comments for their team.</li>
-        <li>Pick the playing team. When a guess is on the board, click its tile — points go into the round bank.</li>
-        <li>Wrong guess? Add a strike. After 3 strikes the other team gets one steal guess.</li>
-        <li>Steal right: reveal it, and the whole bank goes to the stealers. Steal wrong: the bank goes back to the original team.</li>
-        <li>Or bank points any time with the bank buttons. Then show leftover answers and hit Next question.</li>
-        <li>End game to announce the winner. Everything is saved in this browser, so a refresh is safe.</li>
-      </ol>
-      <h3 className="mt-4 mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Keyboard shortcuts</h3>
-      <div className="grid grid-cols-2 gap-1 text-sm">
+    <Modal title="How to Play · Official Game Rules" onClose={onClose}>
+      <div className="space-y-4 text-sm leading-relaxed">
+        <section>
+          <h3 className="mb-1 font-display text-base text-gold">1. Start the show</h3>
+          <p>The audience sees “GET READY” until the host presses <b>PLAY NOW</b>. A 3-second countdown starts the match. Keep the Host Controls open in one tab and the Stage view in another tab on the same browser/device.</p>
+        </section>
+        <section>
+          <h3 className="mb-1 font-display text-base text-gold">2. Team order and match format</h3>
+          <p>The starting team plays all four stages first: <b>Classic → Double → Triple → Kingson Bonus Mission</b>. After its results, the other team gets a <b>30-second handover</b> and then plays its own four stages. The scores from both team turns are compared on the final scoreboard.</p>
+        </section>
+        <section>
+          <h3 className="mb-1 font-display text-base text-gold">3. Classic, Double and Triple rounds</h3>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>Each round has one survey question with six hidden answer tiles and a 60-second timer.</li>
+            <li>The host reads the question. Viewers suggest answers in the live comments.</li>
+            <li>When an answer matches a tile, the host reveals it. Its survey points go into the round bank.</li>
+            <li>Classic awards normal points; Double multiplies the points by 2; Triple multiplies them by 3.</li>
+            <li>The round ends when all six answers are revealed or the 60-second timer runs out. A short results screen and countdown lead into the next stage.</li>
+          </ul>
+        </section>
+        <section>
+          <h3 className="mb-1 font-display text-base text-gold">4. Strikes and steal</h3>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>A wrong answer earns a strike. After three strikes, the other team gets one chance to steal.</li>
+            <li>A correct steal gives the round bank to the stealing team.</li>
+            <li>A failed steal sends the bank to the team that was playing the round.</li>
+          </ul>
+        </section>
+        <section>
+          <h3 className="mb-1 font-display text-base text-gold">5. Kingson Bonus Mission</h3>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>This is five questions in a row, not a six-tile board. The host types and checks one viewer answer for each question.</li>
+            <li>Each question has five accepted answers with different point values adding up to 200. A matched answer earns its listed value; a wrong answer earns zero.</li>
+            <li>Answer at least three of the five bonus questions correctly to earn an extra 500 points.</li>
+            <li>The host-only answer key stays hidden from the audience. The next bonus question opens after each answer is checked.</li>
+          </ul>
+        </section>
+        <section>
+          <h3 className="mb-1 font-display text-base text-gold">6. Winner</h3>
+          <p>After both teams have completed all four stages, the final scoreboard shows each team's round breakdown, total points and the champion. The highest total wins; equal totals are a tie.</p>
+        </section>
+        <p className="rounded-lg border border-gold/40 bg-muted p-3 text-xs text-muted-foreground"><b className="text-gold">Host reminder:</b> The host manages answers and scoring from Host Controls. Viewers play along by suggesting answers in the live comments; they do not need to press game buttons.</p>
+      </div>
+      <h3 className="mt-5 mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Keyboard shortcuts · Host controls</h3>
+      <div className="grid grid-cols-1 gap-1 text-sm sm:grid-cols-2">
         {keys.map(([k, d]) => <div key={k}><kbd className="rounded bg-muted px-2 py-0.5 font-mono text-gold">{k}</kbd> {d}</div>)}
       </div>
       <div className="mt-5 text-right"><button className={btnGold} onClick={onClose}>Got it</button></div>
