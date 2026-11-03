@@ -103,8 +103,10 @@ export function reducer(s: GameState, a: Action): GameState {
       if (s.phase === "awarded") return s;
       if (s.phase === "steal") return awardTo(s, s.controlTeam, "Steal failed");
       const strikes = Math.min(3, s.strikes + 1);
-      if (strikes === 3)
-        return { ...s, strikes, phase: "steal", controlTeam: s.active, active: other(s.active) };
+      if (strikes === 3) {
+        const revealed = { ...s, strikes, tiles: s.tiles.map(() => "shown" as TileState) };
+        return awardTo(revealed, s.active, "Three strikes");
+      }
       return { ...s, strikes };
     }
     case "undoStrike": {
