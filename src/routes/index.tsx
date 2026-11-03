@@ -133,7 +133,7 @@ function drawSurveyIds(questions: Question[]): string[] {
   localStorage.setItem(SURVEY_USED_KEY, JSON.stringify(nextUsed));
   return picked.map((q) => q.id);
 }
-type BonusState = { questions: BonusQuestion[]; index: number; accepted: string[]; total: number; responses: string[]; correctCount: number };
+type BonusState = { questions: BonusQuestion[]; index: number; accepted: string[]; total: number; responses: string[]; correctCount: number; pendingAnswers?: string[]; revealed?: boolean };
 const BONUS_STORAGE_KEY = "kingson-survey-show-bonus-v1";
 const ROUND_QUESTIONS_KEY = "kingson-survey-show-round-questions-v1";
 const RESULT_KEY = "kingson-survey-show-round-result-v1";
@@ -249,7 +249,7 @@ function Game() {
     try { const savedRound = localStorage.getItem(ROUND_KEY); if (savedRound) setRoundMode(savedRound as RoundMode); } catch { /* Keep default. */ }
     try { const savedResult = localStorage.getItem(RESULT_KEY); if (savedResult) setRoundResult(JSON.parse(savedResult) as RoundResult); } catch { /* Keep default. */ }
     try { const savedFinal = localStorage.getItem("kingson-survey-show-final-results-v1"); if (savedFinal) setFinalResults(JSON.parse(savedFinal) as FinalResults); } catch { /* Keep default. */ }
-    try { const savedBonus = localStorage.getItem(BONUS_STORAGE_KEY); if (savedBonus) { const parsed = JSON.parse(savedBonus) as BonusState; const migratedQuestions = Array.isArray(parsed.questions) ? parsed.questions.map((question) => ({ ...question, answers: (question.answers as unknown[]).map((answer, ai) => typeof answer === "string" ? { text: answer, points: [64,51,37,27,21][ai] ?? 21 } : answer as BonusAnswer) })) : BONUS_DEFAULTS; setBonus({ ...parsed, questions: migratedQuestions, responses: Array.isArray(parsed.responses) ? parsed.responses : ["", "", "", "", ""], correctCount: Number.isFinite(parsed.correctCount) ? parsed.correctCount : (Array.isArray(parsed.responses) ? parsed.responses.filter((response) => response && response !== "No answer").length : 0) }); } } catch { /* Keep defaults. */ }
+    try { const savedBonus = localStorage.getItem(BONUS_STORAGE_KEY); if (savedBonus) { const parsed = JSON.parse(savedBonus) as BonusState; const migratedQuestions = Array.isArray(parsed.questions) ? parsed.questions.map((question) => ({ ...question, answers: (question.answers as unknown[]).map((answer, ai) => typeof answer === "string" ? { text: answer, points: [64,51,37,27,21][ai] ?? 21 } : answer as BonusAnswer) })) : BONUS_DEFAULTS; setBonus({ ...parsed, questions: migratedQuestions, responses: Array.isArray(parsed.responses) ? parsed.responses : ["", "", "", "", ""], pendingAnswers: Array.isArray(parsed.pendingAnswers) ? parsed.pendingAnswers : ["", "", "", "", ""], revealed: Boolean(parsed.revealed), correctCount: Number.isFinite(parsed.correctCount) ? parsed.correctCount : (Array.isArray(parsed.responses) ? parsed.responses.filter((response) => response && response !== "No answer").length : 0) }); } } catch { /* Keep defaults. */ }
   }, []);
   // Synchronize the host tab and audience stage tab on the same computer.
   useEffect(() => {
@@ -315,58 +315,51 @@ function Game() {
   const submitBonusGuess = () => {
     const guess = bonusGuess.trim();
     if (!guess) return;
-    if (bonus.responses?.[bonus.index]) {
-      setBonusFeedback("This bonus question has already been answered.");
-      setBonusGuess("");
-      return;
-    }
-    const match = bonus.questions[bonus.index].answers.find((answer) => answerMatches(guess, answer.text));
-    const responses = [...(bonus.responses ?? ["", "", "", "", ""])];
-    const nextCorrectCount = (bonus.correctCount ?? 0) + (match ? 1 : 0);
-    responses[bonus.index] = match ? match.text : "No answer";
-    const isFinalQuestion = bonus.index === 4;
-    const extraBonus = isFinalQuestion && nextCorrectCount >= 3 ? 500 : 0;
-    const pointsEarned = (match?.points ?? 0) + extraBonus;
-    updateBonus({
-      ...bonus,
-      accepted: match ? [...bonus.accepted, bonus.index + ":" + normText(match.text)] : bonus.accepted,
-      total: bonus.total + (match?.points ?? 0),
-      responses,
-      correctCount: nextCorrectCount,
-      index: Math.min(bonus.index + 1, 4),
-    });
-    if (pointsEarned > 0) actRef.current({ type: "adjustScore", team: s.active, delta: pointsEarned });
-    if (match) {
-      setBonusFeedback("Correct! +" + match.points + " points. " + (isFinalQuestion ? (extraBonus ? "You answered " + nextCorrectCount + " correctly — +500 BONUS POINTS!" : "Bonus mission complete.") : "Next bonus question is ready."));
-      playCorrectBell();
-      playAudienceApplause();
-    } else {
-      setBonusFeedback(isFinalQuestion ? (extraBonus ? "Final answer missed, but " + nextCorrectCount + " correct answers earns +500 BONUS POINTS!" : "Bonus mission complete. " + nextCorrectCount + " correct answers.") : "Not on the answer key. No points. Next bonus question is ready.");
-      playWrongBuzzer();
-    }
-    if (extraBonus) playRoundWinFanfare();
-    if (isFinalQuestion) {
-      const team = s.active;
-      const breakdown = {
-        ...(roundPoints[team] ?? { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 }),
-        bonus: bonus.total + (match?.points ?? 0),
-        bonusExtra: extraBonus,
-      };
-      const finalMatch = teamLeg === 2;
-      const total = s.scores[team] + pointsEarned;
-      const opponent: Team = team === "A" ? "B" : "A";
-      const teams = finalMatch ? {
-        [team]: { breakdown, total },
-        [opponent]: { breakdown: roundPoints[opponent] ?? { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 }, total: s.scores[opponent] },
-      } as Record<Team, { breakdown: TeamBreakdown; total: number }> : undefined;
-      const final = { team, breakdown, total, finalMatch, champion: finalMatch ? (total > s.scores[opponent] ? team : total < s.scores[opponent] ? opponent : "tie") : null, ...(teams ? { teams } : {}) };
-      setFinalResults(final);
-      localStorage.setItem("kingson-survey-show-final-results-v1", JSON.stringify(final));
-      setAutoPlay(false);
-      if (!finalMatch) beginCountdown("handover", 30);
-      else playRoundWinFanfare();
-    }
+    const pendingAnswers = [...(bonus.pendingAnswers ?? ["", "", "", "", ""])];
+    const questionIndex = bonus.index;
+    if (!timer.running || bonus.revealed) { setBonusFeedback("The Bonus Mission timer has finished."); return; }
+    if (pendingAnswers[questionIndex]) { setBonusFeedback("An answer has already been recorded for this question."); setBonusGuess(""); return; }
+    pendingAnswers[questionIndex] = guess;
+    const nextIndex = pendingAnswers.findIndex((answer) => !answer);
+    updateBonus({ ...bonus, pendingAnswers, index: nextIndex < 0 ? 4 : nextIndex });
+    setBonusFeedback("Answer recorded privately. The answer and points will be revealed when time is up.");
     setBonusGuess("");
+  };
+  const finishBonusMission = () => {
+    if (bonus.revealed) return;
+    const pendingAnswers = bonus.pendingAnswers ?? ["", "", "", "", ""];
+    let correctCount = 0;
+    let total = 0;
+    const responses = bonus.questions.map((question, index) => {
+      const guess = pendingAnswers[index]?.trim();
+      if (!guess) return "No answer";
+      const match = question.answers.find((answer) => answerMatches(guess, answer.text));
+      if (!match) return "No answer";
+      correctCount += 1; total += match.points; return match.text;
+    });
+    const extraBonus = correctCount >= 3 ? 500 : 0;
+    const team = s.active;
+    const pointsEarned = total + extraBonus;
+    const accepted = bonus.questions.flatMap((question, index) => {
+      const guess = pendingAnswers[index]?.trim();
+      const match = guess ? question.answers.find((answer) => answerMatches(guess, answer.text)) : undefined;
+      return match ? [index + ":" + normText(match.text)] : [];
+    });
+    updateBonus({ ...bonus, index: 4, pendingAnswers, responses, accepted, total, correctCount, revealed: true });
+    if (pointsEarned > 0) actRef.current({ type: "adjustScore", team, delta: pointsEarned });
+    setBonusFeedback("Bonus Mission complete: " + correctCount + "/5 correct. " + total + " points" + (extraBonus ? " + 500 bonus points." : "."));
+    if (correctCount > 0) playAudienceApplause();
+    if (extraBonus) playRoundWinFanfare();
+    const breakdown = { ...(roundPoints[team] ?? { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 }), bonus: total, bonusExtra: extraBonus };
+    const finalMatch = teamLeg === 2;
+    const totalScore = s.scores[team] + pointsEarned;
+    const opponent: Team = team === "A" ? "B" : "A";
+    const teams = finalMatch ? { [team]: { breakdown, total: totalScore }, [opponent]: { breakdown: roundPoints[opponent] ?? { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 }, total: s.scores[opponent] } } as Record<Team, { breakdown: TeamBreakdown; total: number }> : undefined;
+    const final = { team, breakdown, total: totalScore, finalMatch, champion: finalMatch ? (totalScore > s.scores[opponent] ? team : totalScore < s.scores[opponent] ? opponent : "tie") : null, ...(teams ? { teams } : {}) };
+    setFinalResults(final);
+    localStorage.setItem("kingson-survey-show-final-results-v1", JSON.stringify(final));
+    setAutoPlay(false);
+    if (!finalMatch) beginCountdown("handover", 30); else playRoundWinFanfare();
   };
   const updateTimer = (next: TimerState) => {
     setTimer(next);
@@ -449,6 +442,8 @@ function Game() {
         } else if (current.target === "bonus") {
           changeRound("bonus");
           setAutoPlay(false);
+          roundStartScoresRef.current = { ...stateRef.current.scores };
+          updateTimer({ duration: 60, remaining: 60, running: true, endsAt: Date.now() + 60000 });
         } else {
           if (current.target !== roundMode) changeRound(current.target);
           roundStartScoresRef.current = { ...stateRef.current.scores };
@@ -470,6 +465,10 @@ function Game() {
     else if (roundMode === "double") finishMainRound("double", "triple", 3);
     else if (roundMode === "triple") finishMainRound("triple", "bonus", 5);
   }, [s, s.tiles, timer.running, timer.remaining, autoPlay, showCountdown, roundResult, roundMode, stageOnly]);
+  useEffect(() => {
+    if (stageOnly || roundMode !== "bonus" || timer.running || timer.remaining !== 0 || bonus.revealed) return;
+    finishBonusMission();
+  }, [stageOnly, roundMode, timer.running, timer.remaining, bonus, teamLeg]);
   // Both tabs count down from the same end time, so background-tab throttling
   // cannot pause the audience display.
   useEffect(() => {
@@ -1103,7 +1102,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                 <div className="mt-[1cqh] font-display text-electric" style={{fontSize:"2.5cqh"}}>UP TO 200 POINTS AVAILABLE</div>
                 <div className="mt-[1.2cqh] grid w-full flex-1 min-h-0 grid-cols-1 grid-rows-5 gap-[.7cqh]">
                   {Array.from({ length: 5 }, (_, i) => {
-                    const response = bonus.responses?.[i] ?? "";
+                    const response = bonus.revealed ? (bonus.responses?.[i] ?? "") : "";
                     return <div key={i} className="flex min-h-0 items-center gap-[2cqw] rounded-xl border-2 border-gold/50 bg-slate-950/75 px-[2cqw] py-[.45cqh]">
                       <span className="flex h-[5.5cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-display font-black text-gold" style={{fontSize:"3.2cqh"}}>{i + 1}</span>
                       <span className="min-w-0 flex-1 break-words text-left font-bold text-white" style={{fontSize:"3.1cqh",lineHeight:1.12}}>{response || "WAITING FOR ANSWER"}</span>
@@ -1111,7 +1110,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                     </div>;
                   })}
                 </div>
-                <div className="mt-[1.5cqh] text-muted-foreground" style={{fontSize:"2.3cqh"}}>{bonus.responses?.every(Boolean) ? "BONUS ROUND COMPLETE · " + bonus.correctCount + "/5 CORRECT" + (bonus.correctCount >= 3 ? " · +500 BONUS POINTS" : "") : "THE HOST IS CHECKING YOUR ANSWER"}</div>
+                <div className="mt-[1.5cqh] text-muted-foreground" style={{fontSize:"2.3cqh"}}>{bonus.revealed ? "BONUS MISSION COMPLETE · " + bonus.correctCount + "/5 CORRECT" + (bonus.correctCount >= 3 ? " · +500 BONUS POINTS" : "") : "ANSWERS REVEAL WHEN THE 60-SECOND TIMER ENDS"}</div>
               </div>
             ) : <>
             <div className="mb-[1.5cqh] flex items-center justify-center gap-[1cqw]">
@@ -1348,7 +1347,7 @@ function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch, onPlayNow, 
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="text-sm font-semibold text-gold">Question {Math.min(bonus.index + 1, 5)} of 5</span>
             <span className="text-xs text-muted-foreground">A correct answer automatically opens the next question.</span>
-            <button className={btnGhost} onClick={()=>onBonusChange({...bonus,index:0,accepted:[],total:0,responses:["","","","",""],correctCount:0})}>Reset bonus round</button>
+            <button className={btnGhost} onClick={()=>onBonusChange({...bonus,index:0,accepted:[],total:0,responses:["","","","",""],pendingAnswers:["","","","",""],revealed:false,correctCount:0})}>Reset bonus round</button>
           </div>
           <label className="mt-3 block text-xs font-bold uppercase text-muted-foreground">Question shown to viewers</label>
           <input className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2" value={bonus.questions[bonus.index].prompt} onChange={e=>{const questions=[...bonus.questions];questions[bonus.index]={...questions[bonus.index],prompt:e.target.value};onBonusChange({...bonus,questions});}} />
@@ -1358,9 +1357,10 @@ function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch, onPlayNow, 
           </div>
           <p className={"mt-2 text-xs font-semibold " + (bonus.questions[bonus.index].answers.reduce((sum,a)=>sum+a.points,0)===200?"text-gold":"text-destructive")}>Answer points total: {bonus.questions[bonus.index].answers.reduce((sum,a)=>sum+a.points,0)} / 200</p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <input className="min-w-0 flex-1 rounded-md border border-input bg-card px-3 py-2" placeholder="Type the viewer's answer…" value={bonusGuess} disabled={Boolean(bonus.responses?.[bonus.index])} onChange={e=>setBonusGuess(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();submitBonusGuess();}}} />
-            <button className={btnGold} disabled={!bonusGuess.trim() || Boolean(bonus.responses?.[bonus.index])} onClick={submitBonusGuess}>Check · award points</button>
+            <input className="min-w-0 flex-1 rounded-md border border-input bg-card px-3 py-2" placeholder="Type the viewer's answer…" value={bonusGuess} disabled={Boolean(bonus.pendingAnswers?.[bonus.index]) || bonus.revealed || !timer.running} onChange={e=>setBonusGuess(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();submitBonusGuess();}}} />
+            <button className={btnGold} disabled={!bonusGuess.trim() || Boolean(bonus.pendingAnswers?.[bonus.index]) || bonus.revealed || !timer.running} onClick={submitBonusGuess}>Record answer</button>
           </div>
+          <p className="mt-2 text-xs font-semibold text-muted-foreground">60-second mission timer: {timer.remaining}s · {(bonus.pendingAnswers ?? []).filter(Boolean).length} / 5 answers recorded privately</p>
           {bonusFeedback && <p className="mt-2 text-sm font-semibold text-gold">{bonusFeedback}</p>}
           <p className="mt-2 text-xs text-muted-foreground">Current team: {s.teamNames[s.active]}. The audience never sees this answer key. Each question's five answer values should total exactly 200 points.</p>
         </div>
