@@ -158,7 +158,7 @@ type RoundQuestions = { classic: string; double: string; triple: string };
 type RoundQuestionsByTeam = Record<Team, RoundQuestions>;
 type CountdownTarget = RoundMode | "handover";
 type TeamBreakdown = { classic: number; double: number; triple: number; bonus: number; bonusExtra: number };
-type FinalResults = { team: Team; breakdown: TeamBreakdown; total: number; finalMatch: boolean; champion: Team | "tie" | null; teams?: Record<Team, { breakdown: TeamBreakdown; total: number }> };
+type FinalResults = { team: Team; breakdown: TeamBreakdown; total: number; finalMatch: boolean; revealCombined?: boolean; champion: Team | "tie" | null; teams?: Record<Team, { breakdown: TeamBreakdown; total: number }> };
 type RoundResult = { mode: Exclude<RoundMode, "bonus">; team: Team; points: number; nextTarget: RoundMode; countdownSeconds: number };
 
 
@@ -394,7 +394,7 @@ function Game() {
     const totalScore = s.scores[team] + pointsEarned;
     const opponent: Team = team === "A" ? "B" : "A";
     const teams = finalMatch ? { [team]: { breakdown, total: totalScore }, [opponent]: { breakdown: roundPoints[opponent] ?? { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 }, total: s.scores[opponent] } } as Record<Team, { breakdown: TeamBreakdown; total: number }> : undefined;
-    const final = { team, breakdown, total: totalScore, finalMatch, champion: finalMatch ? (totalScore > s.scores[opponent] ? team : totalScore < s.scores[opponent] ? opponent : "tie") : null, ...(teams ? { teams } : {}) };
+    const final = { team, breakdown, total: totalScore, finalMatch, revealCombined: false, champion: finalMatch ? (totalScore > s.scores[opponent] ? team : totalScore < s.scores[opponent] ? opponent : "tie") : null, ...(teams ? { teams } : {}) };
     if (finalMatch) setGameplayMusicActive(false);
     setFinalResults(final);
     localStorage.setItem("kingson-survey-show-final-results-v1", JSON.stringify(final));
@@ -452,9 +452,22 @@ function Game() {
     return () => window.clearTimeout(timeout);
   }, [roundResult, stageOnly]);
   useEffect(() => {
-    if (!finalResults || finalResults.finalMatch || stageOnly || showCountdown) return;
-    const timeout = window.setTimeout(() => beginCountdown("handover", 30), 3000);
-    return () => window.clearTimeout(timeout);
+    if (!finalResults || stageOnly || showCountdown) return;
+    if (finalResults.finalMatch && !finalResults.revealCombined) {
+      const timeout = window.setTimeout(() => {
+        setFinalResults((current) => {
+          if (!current || !current.finalMatch) return current;
+          const next = { ...current, revealCombined: true };
+          localStorage.setItem("kingson-survey-show-final-results-v1", JSON.stringify(next));
+          return next;
+        });
+      }, 5000);
+      return () => window.clearTimeout(timeout);
+    }
+    if (!finalResults.finalMatch) {
+      const timeout = window.setTimeout(() => beginCountdown("handover", 30), 3000);
+      return () => window.clearTimeout(timeout);
+    }
   }, [finalResults, stageOnly, showCountdown]);
   useEffect(() => {
     if (!showCountdown || stageOnly) return;
@@ -1272,7 +1285,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
           <div className="relative z-10 mx-auto flex min-h-full w-full max-w-5xl flex-col items-center justify-start gap-3 sm:justify-center sm:gap-4">
             <div className="mx-auto flex items-center justify-center"><LionCrest className="h-12 w-12 sm:h-16 sm:w-16" /></div>
             <div className="ks-final-kicker font-display font-bold tracking-[.16em] text-purple-100" style={{fontSize:"clamp(.9rem,2.2vw,1.35rem)"}}>✦ KINGSON SURVEY SHOW ✦</div>
-            <div className="ks-final-heading font-display font-black tracking-wide text-white drop-shadow-lg" style={{fontSize:"clamp(1.8rem,5vw,3.5rem)",lineHeight:1.05}}>{finalResults.finalMatch ? "FINAL SCOREBOARD" : "TEAM RESULTS"}</div>
+            <div className="ks-final-heading font-display font-black tracking-wide text-white drop-shadow-lg" style={{fontSize:"clamp(1.8rem,5vw,3.5rem)",lineHeight:1.05}}>{finalResults.finalMatch && finalResults.revealCombined ? "FINAL SCOREBOARD" : (s.teamNames[finalResults.team] + " · TEAM RESULTS")}</div>
             {bonus.revealed && (
               <div className="mx-auto grid w-full max-w-4xl grid-cols-2 gap-2 rounded-xl border-2 border-yellow-300/70 bg-black/85 p-3 text-center sm:grid-cols-5">
                 {bonus.questions.map((question,index)=><div key={index} className="min-w-0 rounded-lg border border-white/15 bg-white/10 px-2 py-2">
@@ -1283,12 +1296,12 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
               </div>
             )}
             <div className={"mx-auto grid w-full max-w-4xl grid-cols-1 gap-3 sm:gap-4 "+(finalResults.finalMatch && finalResults.teams ? "sm:grid-cols-2" : "max-w-2xl")}>
-              {(finalResults.finalMatch && finalResults.teams
+              {(finalResults.finalMatch && finalResults.revealCombined && finalResults.teams
                 ? ([finalResults.champion === "tie" ? finalResults.team : finalResults.champion as Team, (finalResults.champion === "tie" ? (finalResults.team === "A" ? "B" : "A") : finalResults.champion === "A" ? "B" : "A")] as Team[]).map(team=>({team,...finalResults.teams![team]}))
                 : [{team:finalResults.team,breakdown:finalResults.breakdown,total:finalResults.total}]
               ).map((entry,rank)=>(
                 <div key={entry.team} className={"min-w-0 rounded-2xl border-4 p-4 text-left shadow-2xl sm:p-5 "+(rank===0?"border-yellow-300 bg-gradient-to-br from-yellow-300/25 via-yellow-950/95 to-black":"border-purple-300 bg-gradient-to-br from-purple-700/90 via-purple-950/95 to-black")}>
-                  <div className="mb-2 text-center font-display font-black tracking-wider text-yellow-200" style={{fontSize:"clamp(1rem,2.5vw,1.5rem)"}}>{finalResults.finalMatch ? (finalResults.champion === "tie" ? "🤝 TIED" : rank===0?"🏆 WINNER · 1ST PLACE":"2ND PLACE · RUNNER-UP") : "TEAM SCORE"}</div>
+                  <div className="mb-2 text-center font-display font-black tracking-wider text-yellow-200" style={{fontSize:"clamp(1rem,2.5vw,1.5rem)"}}>{finalResults.finalMatch && finalResults.revealCombined ? (finalResults.champion === "tie" ? "🤝 TIED" : rank===0?"🏆 WINNER · 1ST PLACE":"2ND PLACE · RUNNER-UP") : "TEAM RESULTS"}</div>
                   <div className="break-words text-center font-display font-black leading-tight text-white" style={{fontSize:"clamp(1.5rem,4vw,2.5rem)"}}>{s.teamNames[entry.team]}</div>
                   <div className="my-3 space-y-1.5">
                     {([[ "CLASSIC",entry.breakdown.classic ],[ "DOUBLE ×2",entry.breakdown.double ],[ "TRIPLE ×3",entry.breakdown.triple ],[ "BONUS MISSION",entry.breakdown.bonus ],[ "500-POINT REWARD",entry.breakdown.bonusExtra ]] as [string,number][]).map(([label,points])=>(
@@ -1305,7 +1318,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                 </div>
               ))}
             </div>
-            {finalResults.finalMatch ? <div className="ks-final-champion mt-1 rounded-xl border-2 border-yellow-300 bg-black/90 px-4 py-3 font-display font-black text-yellow-200 shadow-xl sm:px-8" style={{fontSize:"clamp(1.35rem,3.5vw,2.7rem)"}}>{finalResults.champion === "tie" ? "🏆 IT'S A TIE! 🏆" : "🏆 CHAMPION: " + s.teamNames[finalResults.champion as Team] + " 🏆"}</div> : <div className="inline-flex items-center gap-2 rounded-full border-2 border-purple-200 bg-purple-950 px-5 py-2 font-display font-bold text-white" style={{fontSize:"clamp(1rem,2.2vw,1.4rem)"}}>TEAM B PREPARES IN <span className="font-black text-yellow-300">{showCountdown?.target === "handover" ? showCountdown.remaining : 30}</span> SECONDS</div>}
+            {finalResults.finalMatch && finalResults.revealCombined ? <div className="ks-final-champion mt-1 rounded-xl border-2 border-yellow-300 bg-black/90 px-4 py-3 font-display font-black text-yellow-200 shadow-xl sm:px-8" style={{fontSize:"clamp(1.35rem,3.5vw,2.7rem)"}}>{finalResults.champion === "tie" ? "🏆 IT'S A TIE! 🏆" : "🏆 CHAMPION: " + s.teamNames[finalResults.champion as Team] + " 🏆"}</div> : finalResults.finalMatch ? <div className="rounded-xl border-2 border-purple-200 bg-purple-950 px-5 py-2 font-display font-bold text-white" style={{fontSize:"clamp(1rem,2.2vw,1.4rem)"}}>FINAL SCORES COMING UP…</div> : <div className="inline-flex items-center gap-2 rounded-full border-2 border-purple-200 bg-purple-950 px-5 py-2 font-display font-bold text-white" style={{fontSize:"clamp(1rem,2.2vw,1.4rem)"}}>TEAM B PREPARES IN <span className="font-black text-yellow-300">{showCountdown?.target === "handover" ? showCountdown.remaining : 30}</span> SECONDS</div>}
           </div>
         </div>
       )}
