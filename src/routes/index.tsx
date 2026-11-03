@@ -954,14 +954,9 @@ function Game() {
       if (t.closest("input, textarea, select")) return;
       const k = e.key.toLowerCase();
       if (/^[1-6]$/.test(k)) actRef.current({ type: "reveal", index: Number(k) - 1 });
-      else if (k === "x") actRef.current({ type: "strike" });
       else if (k === "n") actRef.current({ type: "next" });
       else if (k === "r") actRef.current({ type: "next", random: true });
-      else if (k === "a" || k === "b") actRef.current({ type: "setActive", team: k.toUpperCase() as Team });
-      else if (k === " " || k === "enter") {
-        e.preventDefault();
-        actRef.current({ type: "award", team: stateRef.current.active });
-      } else if (k === "s") setStageOnly((v) => !v);
+ else if (k === "s") setStageOnly((v) => !v);
       else if (k === "escape") { setStageOnly(false); setHelp(false); setEditing(false); }
       else if (k === "h" || k === "?") setHelp((v) => !v);
       else return;
@@ -1377,25 +1372,11 @@ function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch, onPlayNow, 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Round */}
         <div className="rounded-xl bg-muted p-3">
-          <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Playing team</h3>
-          <div className="grid grid-cols-2 gap-2">
-            {(["A", "B"] as Team[]).map((t) => (
-              <button key={t} disabled={s.phase !== "play"} onClick={() => act({ type: "setActive", team: t })}
-                className={`${btn} border-2 ${s.active === t ? "border-electric bg-secondary text-secondary-foreground" : "border-border bg-card text-foreground"}`}>
-                {s.teamNames[t]} ({t})
-              </button>
-            ))}
-          </div>
-          <div className="mt-3 text-sm">
-            {s.phase === "play" && <>Strikes: <b className="text-destructive">{s.strikes}/3</b> · Click tiles or press 1–6.</>}
-            
-            {s.phase === "awarded" && <span className="text-muted-foreground">Round finished. The remaining answers are revealed automatically before the next round.</span>}
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <button className={btnDanger} disabled={s.phase === "awarded"} onClick={() => act({ type: "strike" })}>
-              ✕ Strike (X)
-            </button>
-            <button className={btnGhost} disabled={s.phase === "awarded" || (s.phase === "play" && s.strikes === 0)} onClick={() => act({ type: "undoStrike" })}>Undo strike</button>
+          <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Automatic team & strikes</h3>
+          <div className="text-sm">
+            <p>Playing team: <b className="text-electric">{s.teamNames[s.active]}</b></p>
+            {s.phase === "play" && <p className="mt-2">Strikes: <b className="text-destructive">{s.strikes}/3</b> · Wrong answers add strikes automatically. Three strikes end the round.</p>}
+            {s.phase === "awarded" && <p className="mt-2 text-muted-foreground">Round finished. The remaining answers are revealed automatically before the next round.</p>}
           </div>
           
         </div>
@@ -1403,13 +1384,7 @@ function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch, onPlayNow, 
         {/* Bank */}
         <div className="rounded-xl bg-muted p-3">
           <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Round bank: <span className="text-gold text-base">{s.bank}</span></h3>
-          <div className="grid grid-cols-2 gap-2">
-            {(["A", "B"] as Team[]).map((t) => (
-              <button key={t} className={t === s.active ? btnGold : btnGhost} disabled={s.phase === "awarded"} onClick={() => act({ type: "award", team: t })}>
-                Bank to {s.teamNames[t]}{t === s.active ? " (Space)" : ""}
-              </button>
-            ))}
-          </div>
+
           <div className="mt-2 grid grid-cols-2 gap-2">
             <button className={btnGhost} disabled={s.tiles.every((t) => t !== "hidden")} onClick={() => act({ type: "showAll" })}>Show remaining answers</button>
             <button className={btnGhost} onClick={() => act({ type: "resetRound" })}>Reset this round</button>
@@ -1647,9 +1622,6 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
 function HelpOverlay({ onClose }: { onClose: () => void }) {
   const keys: [string, string][] = [
     ["1 – 6", "Reveal answer tiles 1 to 6"],
-    ["X", "Give a strike"],
-    ["A / B", "Select the playing team"],
-    ["Space / Enter", "Award the round bank to the active team"],
     ["N", "Move to the next unused question (host control)"],
     ["R", "Choose a random question (host control)"],
     ["S", "Open or close Stage view"],
