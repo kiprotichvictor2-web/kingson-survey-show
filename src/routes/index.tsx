@@ -1165,7 +1165,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
       <div className="spotlight pointer-events-none absolute -top-[10%] left-[8%] h-[120%] w-[30%]" />
       <div className="spotlight pointer-events-none absolute -top-[10%] right-[8%] h-[120%] w-[30%]" style={{ animationDelay: "-4.5s" }} />
 
-      <div className="relative flex h-full flex-col px-[3cqw] py-[2.2cqh]">
+      <div className="relative flex h-full flex-col px-[2.5cqw] py-[1.2cqh]">
         {/* header */}
         <div className="flex items-center justify-between">
           <div className="ks-title-glow font-display tracking-wide leading-none" style={{ fontSize: "3.4cqh" }}>
@@ -1179,12 +1179,12 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
         </div>
 
         {/* question */}
-        <div className="ks-question mt-[2cqh] rounded-xl px-[2cqw] py-[1.8cqh] text-center">
-          <h1 className="font-display uppercase leading-tight tracking-wide" style={{ fontSize: "4.6cqh" }}>{roundMode === "bonus" ? activeBonusQuestion.prompt : q.prompt}</h1>
+        <div className="ks-question mt-[1cqh] rounded-xl px-[2cqw] py-[1cqh] text-center">
+          <h1 className="font-display uppercase leading-tight tracking-wide" style={{ fontSize: "4.1cqh" }}>{roundMode === "bonus" ? activeBonusQuestion.prompt : q.prompt}</h1>
         </div>
 
         {/* body */}
-        <div className="mt-[2cqh] flex flex-1 min-h-0 flex-col gap-[1.2cqh]">
+        <div className="mt-[1cqh] flex flex-1 min-h-0 flex-col gap-[.65cqh]">
           <div className="grid grid-cols-2 gap-[1.5cqw]">
             <Podium s={s} team="A" />
             <Podium s={s} team="B" />
@@ -1221,11 +1221,11 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                 <span className="font-display text-gold" style={{fontSize:"2.3cqh"}}>{roundResult.mode.toUpperCase()} {roundResult.mode === "classic" ? "×1" : roundResult.mode === "double" ? "×2" : "×3"}</span>
               </div>
             )}
-            <div className="mb-[1.5cqh] flex items-center justify-center gap-[1cqw]">
+            <div className="mb-[.7cqh] flex items-center justify-center gap-[1cqw]">
               <span className="font-display text-muted-foreground" style={{ fontSize: "2.4cqh" }}>ROUND BANK</span>
               <span key={s.bank} className="pop font-display gold-text" style={{ fontSize: "5cqh", lineHeight: 1 }}>{s.bank}</span>
             </div>
-            <div className="grid flex-1 min-h-0 grid-cols-1 grid-rows-6 gap-[1.35cqh]" style={{ perspective: 800 }}>
+            <div className="grid flex-1 min-h-0 grid-cols-1 grid-rows-6 gap-[1.1cqh]" style={{ perspective: 800 }}>
               {q.answers.map((ans, i) => {
                 const t = s.tiles[i];
                 return (
@@ -1233,7 +1233,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                     key={`${q.id}-${i}-${t}`}
                     onClick={() => onReveal(i)}
                     disabled={t !== "hidden"}
-                    className={`ks-tile flex min-h-0 items-center rounded-xl px-[2.8cqw] py-[.55cqh] text-left ${t === "hidden" ? "tile-closed cursor-pointer hover:brightness-125" : t === "scored" ? "tile-open" : "tile-shown"}`}
+                    className={`ks-tile flex min-h-0 items-center rounded-xl px-[3.2cqw] py-[1cqh] text-left ${t === "hidden" ? "tile-closed cursor-pointer hover:brightness-125" : t === "scored" ? "tile-open" : "tile-shown"}`}
                     aria-label={t === "hidden" ? `Reveal answer ${i + 1}` : `${ans.text} ${ans.points}`}
                   >
                     {t === "hidden" ? (
@@ -1250,7 +1250,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
               })}
             </div>
             {/* strikes */}
-            <div className="mt-[.8cqh] flex h-[5.5cqh] shrink-0 items-center justify-center gap-[1.5cqw]">
+            <div className="mt-[.4cqh] flex h-[3.5cqh] shrink-0 items-center justify-center gap-[1.5cqw]">
               {!s.lastAward && [0, 1, 2].map((i) => (
                 <div key={i} className={`flex aspect-square h-full items-center justify-center rounded-lg border-2 font-display ${i < s.strikes ? "pop border-destructive bg-destructive/20 text-destructive" : "border-border text-border"}`} style={{ fontSize: "7cqh", lineHeight: 1 }}>✕</div>
               ))}
@@ -1339,7 +1339,7 @@ function Podium({ s, team }: { s: GameState; team: Team }) {
   return (
     <div className={`ks-podium flex min-h-0 flex-row items-center justify-center gap-[2cqw] rounded-xl border-2 px-[2cqw] py-[.5cqh] ${active ? "ks-podium-active glow-active border-electric" : "border-border opacity-80"}`}>
       <div className="font-display text-center uppercase tracking-wide" style={{ fontSize: "2.5cqh" }}>{s.teamNames[team]}</div>
-      <div key={s.scores[team]} className="pop font-mono font-bold tabular-nums gold-text" style={{ fontSize: "5.8cqh", lineHeight: 1 }}>{s.scores[team]}</div>
+      <div key={s.scores[team]} className="pop font-mono font-bold tabular-nums gold-text" style={{ fontSize: "4.6cqh", lineHeight: 1 }}>{s.scores[team]}</div>
       <div className={`rounded-full px-[1cqw] font-display ${active ? "bg-electric text-accent-foreground" : "text-transparent"}`} style={{ fontSize: "1.8cqh" }}>
         {active ? "PLAYING" : ""}
       </div>
