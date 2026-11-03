@@ -17,7 +17,7 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "KINGSON SURVEY SHOW — Live Game Show" },
-      { name: "description", content: "Host a family survey game show live: reveal answers, track strikes, steals and team scores from one tab." },
+      { name: "description", content: "Host a family survey game show live: reveal answers, track strikes and team scores from one tab." },
       { property: "og:title", content: "KINGSON SURVEY SHOW" },
       { property: "og:description", content: "A one-host survey game show built for TikTok LIVE." },
     ],
@@ -1081,7 +1081,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
           <div className="flex items-center gap-[1.5cqw] font-display text-muted-foreground" style={{ fontSize: "2.6cqh" }}>
             <span>{roundMode === "bonus" ? "KINGSON BONUS ROUND" : roundMode === "triple" ? "TRIPLE POINT ROUND" : roundMode === "double" ? "DOUBLE POINT ROUND" : "CLASSIC ROUND"}</span>
             <span className={timer.remaining <= 5 && timer.running ? "text-destructive" : "text-gold"}>TIME {timer.remaining}s</span>
-            {s.phase === "steal" && <span className="pop rounded-md bg-destructive px-[1cqw] text-destructive-foreground">STEAL! {s.teamNames[s.active]}</span>}
+            
           </div>
         </div>
 
@@ -1223,7 +1223,7 @@ function Podium({ s, team }: { s: GameState; team: Team }) {
       <div className="font-display text-center uppercase tracking-wide" style={{ fontSize: "2.5cqh" }}>{s.teamNames[team]}</div>
       <div key={s.scores[team]} className="pop font-display gold-text" style={{ fontSize: "5.5cqh", lineHeight: 1 }}>{s.scores[team]}</div>
       <div className={`rounded-full px-[1cqw] font-display ${active ? "bg-electric text-accent-foreground" : "text-transparent"}`} style={{ fontSize: "1.8cqh" }}>
-        {s.phase === "steal" && active ? "STEALING" : "PLAYING"}
+        {active ? "PLAYING" : ""}
       </div>
     </div>
   );
@@ -1268,20 +1268,16 @@ function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch, onPlayNow, 
           </div>
           <div className="mt-3 text-sm">
             {s.phase === "play" && <>Strikes: <b className="text-destructive">{s.strikes}/3</b> · Click tiles or press 1–6.</>}
-            {s.phase === "steal" && <span className="text-gold font-semibold">STEAL: {s.teamNames[s.active]} gets one guess. Reveal their answer if it's on the board, or mark it failed.</span>}
-            {s.phase === "awarded" && <span className="text-muted-foreground">Round finished. Reveal leftover answers (no points) or go to the next question.</span>}
+            
+            {s.phase === "awarded" && <span className="text-muted-foreground">Round finished. The remaining answers are revealed automatically before the next round.</span>}
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button className={btnDanger} disabled={s.phase === "awarded"} onClick={() => act({ type: "strike" })}>
-              {s.phase === "steal" ? "✕ Wrong steal (X)" : "✕ Strike (X)"}
+              ✕ Strike (X)
             </button>
             <button className={btnGhost} disabled={s.phase === "awarded" || (s.phase === "play" && s.strikes === 0)} onClick={() => act({ type: "undoStrike" })}>Undo strike</button>
           </div>
-          {s.phase === "steal" && (
-            <button className={`${btnGold} mt-2 w-full`} onClick={() => act({ type: "stealFail" })}>
-              Steal failed → bank {s.bank} to {s.teamNames[s.controlTeam]}
-            </button>
-          )}
+          
         </div>
 
         {/* Bank */}
@@ -1530,7 +1526,7 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
 function HelpOverlay({ onClose }: { onClose: () => void }) {
   const keys: [string, string][] = [
     ["1 – 6", "Reveal answer tiles 1 to 6"],
-    ["X", "Give a strike / mark a steal wrong"],
+    ["X", "Give a strike"],
     ["A / B", "Select the playing team"],
     ["Space / Enter", "Award the round bank to the active team"],
     ["N", "Move to the next unused question (host control)"],
@@ -1561,11 +1557,11 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
           </ul>
         </section>
         <section>
-          <h3 className="mb-1 font-display text-base text-gold">4. Strikes and steal</h3>
+          <h3 className="mb-1 font-display text-base text-gold">4. Strikes and automatic answer reveal</h3>
           <ul className="list-disc space-y-1 pl-5">
-            <li>A wrong answer earns a strike. After three strikes, the other team gets one chance to steal.</li>
-            <li>A correct steal gives the round bank to the stealing team.</li>
-            <li>A failed steal sends the bank to the team that was playing the round.</li>
+            <li>A wrong answer earns a strike. After three strikes, the round automatically ends and the playing team keeps its round bank.</li>
+            <li>All remaining hidden answers automatically reveal so the audience can see the complete board.</li>
+            <li>The round results appear briefly, then the automatic countdown starts the next round.</li>
           </ul>
         </section>
         <section>
