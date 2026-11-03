@@ -469,50 +469,50 @@ function Game() {
   }, [finalResults, stageOnly, showCountdown]);
   useEffect(() => {
     if (!showCountdown || stageOnly) return;
-    const interval = window.setInterval(() => {
-      setShowCountdown((current) => {
-        if (!current) return null;
-        if (current.remaining > 1) {
-          const next = { ...current, remaining: current.remaining - 1 };
-          localStorage.setItem("kingson-survey-show-countdown-v1", JSON.stringify(next));
-          return next;
-        }
-        localStorage.removeItem("kingson-survey-show-countdown-v1");
-        if (current.target === "handover") {
-          const nextTeam: Team = stateRef.current.active === "A" ? "B" : "A";
-          const currentState = stateRef.current;
-          const questionId = roundQuestions?.[nextTeam].classic;
-          const switched = questionId ? reducer({ ...currentState, active: nextTeam, controlTeam: nextTeam, phase: "play" }, { type: "next", id: questionId }) : { ...currentState, active: nextTeam, controlTeam: nextTeam, phase: "play" as const };
-          dispatch({ type: "__load", s: switched });
-          setRoundMode("classic");
-          localStorage.setItem(ROUND_KEY, "classic");
-          setTeamLeg(2);
-          setFinalResults(null);
-          localStorage.removeItem("kingson-survey-show-final-results-v1");
-          setRoundPoints((previous) => ({ ...previous, [nextTeam]: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 } }));
-          const freshBonus = { ...bonus, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0, pendingAnswers: ["", "", "", "", ""], revealed: false };
-          setBonus(freshBonus);
-          localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus));
-          setAutoPlay(true);
-          roundStartScoresRef.current = { ...switched.scores };
-          const started = { duration: 60, remaining: 60, running: true, endsAt: Date.now() + 60000 };
-          updateTimer(started);
-        } else if (current.target === "bonus") {
-          changeRound("bonus");
-          setAutoPlay(false);
-          roundStartScoresRef.current = { ...stateRef.current.scores };
-          updateTimer({ duration: 60, remaining: 60, running: true, endsAt: Date.now() + 60000 });
-        } else {
-          if (current.target !== roundMode) changeRound(current.target);
-          roundStartScoresRef.current = { ...stateRef.current.scores };
-          const started = { duration: 60, remaining: 60, running: true, endsAt: Date.now() + 60000 };
-          updateTimer(started);
-        }
-        transitionLockRef.current = false;
-        return null;
-      });
+    const timeout = window.setTimeout(() => {
+      if (showCountdown.remaining > 1) {
+        const next = { ...showCountdown, remaining: showCountdown.remaining - 1 };
+        localStorage.setItem("kingson-survey-show-countdown-v1", JSON.stringify(next));
+        setShowCountdown(next);
+        return;
+      }
+
+      // Run transition side effects in the effect, not inside a state updater.
+      // React may replay updater functions, which can otherwise duplicate the
+      // team handover and leave the host view in a broken transition.
+      localStorage.removeItem("kingson-survey-show-countdown-v1");
+      if (showCountdown.target === "handover") {
+        const nextTeam: Team = stateRef.current.active === "A" ? "B" : "A";
+        const currentState = stateRef.current;
+        const questionId = roundQuestions?.[nextTeam].classic;
+        const switched = questionId ? reducer({ ...currentState, active: nextTeam, controlTeam: nextTeam, phase: "play" }, { type: "next", id: questionId }) : { ...currentState, active: nextTeam, controlTeam: nextTeam, phase: "play" as const };
+        dispatch({ type: "__load", s: switched });
+        setRoundMode("classic");
+        localStorage.setItem(ROUND_KEY, "classic");
+        setTeamLeg(2);
+        setFinalResults(null);
+        localStorage.removeItem("kingson-survey-show-final-results-v1");
+        setRoundPoints(previous => ({ ...previous, [nextTeam]: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 } }));
+        const freshBonus = { ...bonus, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0, pendingAnswers: ["", "", "", "", ""], revealed: false };
+        setBonus(freshBonus);
+        localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus));
+        setAutoPlay(true);
+        roundStartScoresRef.current = { ...switched.scores };
+        updateTimer({ duration: 60, remaining: 60, running: true, endsAt: Date.now() + 60000 });
+      } else if (showCountdown.target === "bonus") {
+        changeRound("bonus");
+        setAutoPlay(false);
+        roundStartScoresRef.current = { ...stateRef.current.scores };
+        updateTimer({ duration: 60, remaining: 60, running: true, endsAt: Date.now() + 60000 });
+      } else {
+        if (showCountdown.target !== roundMode) changeRound(showCountdown.target);
+        roundStartScoresRef.current = { ...stateRef.current.scores };
+        updateTimer({ duration: 60, remaining: 60, running: true, endsAt: Date.now() + 60000 });
+      }
+      transitionLockRef.current = false;
+      setShowCountdown(null);
     }, 1000);
-    return () => window.clearInterval(interval);
+    return () => window.clearTimeout(timeout);
   }, [showCountdown, stageOnly, roundMode]);
   useEffect(() => {
     if (!autoPlay || stageOnly || showCountdown || roundResult || transitionLockRef.current || roundMode === "bonus") return;
