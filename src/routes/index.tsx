@@ -966,7 +966,6 @@ function Game() {
             onHelp={() => setHelp(true)}
             onEdit={() => setEditing(true)}
             onNewMatch={() => setConfirmNew(true)}
-            onPlayIntro={playShowIntro}
             onPlayNow={playNow}
             roundMode={roundMode}
             onRoundChange={changeRound}
@@ -1234,8 +1233,8 @@ function Podium({ s, team }: { s: GameState; team: Team }) {
 
 /* ---------------- HOST ---------------- */
 
-function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, onNewMatch, onPlayIntro, onPlayNow, roundMode, onRoundChange, bonus, onBonusChange, bonusGuess, setBonusGuess, bonusFeedback, submitBonusGuess }: {
-  s: GameState; q: Question; act: (a: Action) => void; timer: TimerState; onTimerChange: (timer: TimerState) => void; onStage: () => void; onHelp: () => void; onEdit: () => void; onNewMatch: () => void; onPlayIntro: () => void; onPlayNow: () => void;
+function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, onNewMatch, onPlayNow, roundMode, onRoundChange, bonus, onBonusChange, bonusGuess, setBonusGuess, bonusFeedback, submitBonusGuess }: {
+  s: GameState; q: Question; act: (a: Action) => void; timer: TimerState; onTimerChange: (timer: TimerState) => void; onStage: () => void; onHelp: () => void; onEdit: () => void; onNewMatch: () => void; onPlayNow: () => void;
   roundMode: RoundMode; onRoundChange: (mode: RoundMode) => void; bonus: BonusState; onBonusChange: (next: BonusState) => void; bonusGuess: string; setBonusGuess: (value: string) => void; bonusFeedback: string; submitBonusGuess: () => void;
 }) {
   const unused = s.questions.filter((x) => !s.usedIds.includes(x.id)).length;
@@ -1244,7 +1243,7 @@ function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, o
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-xl tracking-wide text-gold">HOST CONTROLS <span className="ml-2 font-sans text-xs font-normal text-muted-foreground">not part of the show — open Stage view in a second tab when streaming</span></h2>
         <div className="flex flex-wrap gap-2">
-          <button className={btnGold} onClick={onPlayIntro}>▶ Play show intro</button><button className={btnGold} onClick={onPlayNow}>▶ PLAY NOW</button>
+          <button className={btnGold} onClick={onPlayNow}>▶ PLAY NOW</button>
           <button className={btnGhost} onClick={onHelp}>How to play (H)</button>
           <button className={btnBlue} onClick={onStage}>Stage view (S)</button>
         </div>
