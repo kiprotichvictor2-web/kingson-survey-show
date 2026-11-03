@@ -960,8 +960,6 @@ function Game() {
             s={s}
             q={q}
             act={act}
-            timer={timer}
-            onTimerChange={updateTimer}
             onStage={() => window.open(`${window.location.pathname}?stage=1`, "_blank", "noopener,noreferrer")}
             onHelp={() => setHelp(true)}
             onEdit={() => setEditing(true)}
@@ -1233,8 +1231,8 @@ function Podium({ s, team }: { s: GameState; team: Team }) {
 
 /* ---------------- HOST ---------------- */
 
-function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, onNewMatch, onPlayNow, roundMode, onRoundChange, bonus, onBonusChange, bonusGuess, setBonusGuess, bonusFeedback, submitBonusGuess }: {
-  s: GameState; q: Question; act: (a: Action) => void; timer: TimerState; onTimerChange: (timer: TimerState) => void; onStage: () => void; onHelp: () => void; onEdit: () => void; onNewMatch: () => void; onPlayNow: () => void;
+function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch, onPlayNow, roundMode, onRoundChange, bonus, onBonusChange, bonusGuess, setBonusGuess, bonusFeedback, submitBonusGuess }: {
+  s: GameState; q: Question; act: (a: Action) => void; onStage: () => void; onHelp: () => void; onEdit: () => void; onNewMatch: () => void; onPlayNow: () => void;
   roundMode: RoundMode; onRoundChange: (mode: RoundMode) => void; bonus: BonusState; onBonusChange: (next: BonusState) => void; bonusGuess: string; setBonusGuess: (value: string) => void; bonusFeedback: string; submitBonusGuess: () => void;
 }) {
   const unused = s.questions.filter((x) => !s.usedIds.includes(x.id)).length;
@@ -1249,17 +1247,6 @@ function HostPanel({ s, q, act, timer, onTimerChange, onStage, onHelp, onEdit, o
         </div>
       </div>
 
-      <div className="mb-4 rounded-xl border border-gold/50 bg-muted p-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div><h3 className="font-display text-lg text-gold">ROUND COUNTDOWN</h3><p className="text-xs text-muted-foreground">The audience Stage screen updates automatically.</p></div>
-          <div className={"font-display text-3xl tabular-nums " + (timer.remaining <= 5 && timer.running ? "text-destructive" : "text-gold")}>{timer.remaining}s</div>
-          <div className="flex flex-wrap items-center gap-2">
-            {[60, 30, 20, 15, 10].map((seconds) => <button key={seconds} className={timer.duration === seconds ? btnGold : btnGhost} onClick={() => onTimerChange({ duration: seconds, remaining: seconds, running: false, endsAt: null })}>{seconds}s</button>)}
-            <button className={btnBlue} onClick={() => onTimerChange(timer.running ? { ...timer, running: false, endsAt: null } : { ...timer, running: true, endsAt: Date.now() + timer.remaining * 1000 })} disabled={timer.remaining === 0}>{timer.running ? "Pause" : "Start"}</button>
-            <button className={btnGhost} onClick={() => onTimerChange({ ...timer, remaining: timer.duration, running: false, endsAt: null })}>Reset</button>
-          </div>
-        </div>
-      </div>
       <div className="mb-4 rounded-xl border border-electric/40 bg-muted p-3">
         <h3 className="mb-2 font-display text-lg text-gold">SHOW ROUNDS</h3>
         <div className="flex flex-wrap gap-2">
