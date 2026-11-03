@@ -461,6 +461,23 @@ function Game() {
     const allRevealed = s.tiles.length > 0 && s.tiles.every((tile) => tile !== "hidden");
     const timeExpired = !timer.running && timer.remaining === 0;
     if (!allRevealed && !timeExpired) return;
+
+    // After the third strike, keep the fully revealed answer board visible
+    // before showing the round-results screen and starting the next countdown.
+    if (s.strikes >= 3 && s.phase === "awarded") {
+      transitionLockRef.current = true;
+      const revealPause = window.setTimeout(() => {
+        transitionLockRef.current = false;
+        if (roundMode === "classic") finishMainRound("classic", "double", 3);
+        else if (roundMode === "double") finishMainRound("double", "triple", 3);
+        else if (roundMode === "triple") finishMainRound("triple", "bonus", 5);
+      }, 3000);
+      return () => {
+        window.clearTimeout(revealPause);
+        transitionLockRef.current = false;
+      };
+    }
+
     if (roundMode === "classic") finishMainRound("classic", "double", 3);
     else if (roundMode === "double") finishMainRound("double", "triple", 3);
     else if (roundMode === "triple") finishMainRound("triple", "bonus", 5);
