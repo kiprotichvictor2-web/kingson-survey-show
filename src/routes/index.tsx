@@ -1167,6 +1167,13 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
             <div className="mx-auto mb-1 flex items-center justify-center"><LionCrest className="h-[7cqh] w-[7cqh]" /></div>
             <div className="ks-final-kicker font-display tracking-[.28em] text-purple-200" style={{fontSize:"3cqh"}}>✦ KINGSON SURVEY SHOW ✦</div>
             <div className="ks-final-heading mt-1 font-display font-black tracking-wide text-white" style={{fontSize:"5.8cqh",lineHeight:1.05}}>{finalResults.finalMatch ? "FINAL SCOREBOARD" : "TEAM RESULTS"}</div>
+            {bonus.revealed && <div className="mx-auto mt-2 grid w-full max-w-3xl grid-cols-1 gap-1 rounded-xl border border-yellow-300/60 bg-black/65 p-2 text-left">
+              <div className="mb-1 text-center font-display text-yellow-200" style={{fontSize:"2.8cqh"}}>BONUS MISSION · ANSWER REVEAL</div>
+              {bonus.questions.map((question,index)=><div key={index} className="grid grid-cols-[1fr_auto] items-center gap-2 border-b border-white/15 py-1 last:border-0">
+                <div className="min-w-0 text-white" style={{fontSize:"2.4cqh"}}>{index+1}. {question.answers.find(answer=>answer.text===bonus.responses[index])?.text ?? "No answer"}</div>
+                <div className="font-display font-bold text-yellow-200" style={{fontSize:"2.5cqh"}}>{question.answers.find(answer=>answer.text===bonus.responses[index])?.points ?? 0} PTS</div>
+              </div>)}
+            </div>}
             {finalResults.finalMatch && finalResults.teams ? <div className="mx-auto mt-3 grid w-full max-w-3xl grid-cols-2 gap-2">
               {([finalResults.champion === "tie" ? finalResults.team : finalResults.champion as Team, (finalResults.champion === "tie" ? (finalResults.team === "A" ? "B" : "A") : finalResults.champion === "A" ? "B" : "A")] as Team[]).map((team,rank)=><div key={team} className={"rounded-xl border-2 px-2 py-2 "+(rank===0?"border-yellow-300 bg-yellow-400/15":"border-purple-300/60 bg-purple-950/70")}>
                 <div className="font-display text-yellow-200" style={{fontSize:"2.7cqh"}}>{finalResults.champion === "tie" ? "TIED" : rank===0?"🏆 1ST PLACE":"2ND PLACE"}</div>
