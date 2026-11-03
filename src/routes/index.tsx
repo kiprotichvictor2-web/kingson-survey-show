@@ -1037,6 +1037,7 @@ function Game() {
             onPlayNow={playNow}
             roundMode={roundMode}
             onRoundChange={changeRound}
+            timer={timer}
             bonus={bonus}
             onBonusChange={updateBonus}
             bonusGuess={bonusGuess}
@@ -1309,9 +1310,9 @@ function Podium({ s, team }: { s: GameState; team: Team }) {
 
 /* ---------------- HOST ---------------- */
 
-function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch, onPlayNow, roundMode, onRoundChange, bonus, onBonusChange, bonusGuess, setBonusGuess, bonusFeedback, submitBonusGuess }: {
+function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch, onPlayNow, roundMode, onRoundChange, bonus, onBonusChange, bonusGuess, setBonusGuess, bonusFeedback, submitBonusGuess, timer }: {
   s: GameState; q: Question; act: (a: Action) => void; onStage: () => void; onHelp: () => void; onEdit: () => void; onNewMatch: () => void; onPlayNow: () => void;
-  roundMode: RoundMode; onRoundChange: (mode: RoundMode) => void; bonus: BonusState; onBonusChange: (next: BonusState) => void; bonusGuess: string; setBonusGuess: (value: string) => void; bonusFeedback: string; submitBonusGuess: () => void;
+  roundMode: RoundMode; onRoundChange: (mode: RoundMode) => void; timer: TimerState; bonus: BonusState; onBonusChange: (next: BonusState) => void; bonusGuess: string; setBonusGuess: (value: string) => void; bonusFeedback: string; submitBonusGuess: () => void;
 }) {
   const safeBonusQuestions = normalizeBonusQuestions(bonus.questions);
   const safeBonusIndex = Math.min(4, Math.max(0, Number.isInteger(bonus.index) ? bonus.index : 0));
