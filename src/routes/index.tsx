@@ -368,8 +368,12 @@ function Game() {
     setBonusGuess("");
   };
   const finishBonusMission = () => {
-    if (bonus.revealed) return;
-    const pendingAnswers = bonus.pendingAnswers ?? ["", "", "", "", ""];
+    if (bonus.revealed || bonusFinishLockRef.current) return;
+    bonusFinishLockRef.current = true;
+    const questions = normalizeBonusQuestions(bonus.questions);
+    const pendingAnswers = Array.from({ length: 5 }, (_, index) =>
+      typeof bonus.pendingAnswers?.[index] === "string" ? bonus.pendingAnswers[index] as string : ""
+    );
     let correctCount = 0;
     let total = 0;
     const responses = questions.map((question, index) => {
