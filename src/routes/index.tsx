@@ -170,7 +170,6 @@ function Game() {
   const [themePlayerActive, setThemePlayerActive] = useState(false);
   const [gameplayMusicActive, setGameplayMusicActive] = useState(false);
   const [help, setHelp] = useState(false);
-  const [editing, setEditing] = useState(false);
   const [confirmNew, setConfirmNew] = useState(false);
   const [strikeFlash, setStrikeFlash] = useState(0);
   const [timer, setTimer] = useState<TimerState>({ duration: 60, remaining: 60, running: false, endsAt: null });
@@ -1047,7 +1046,6 @@ function Game() {
             act={act}
             onStage={() => window.open(`${window.location.pathname}?stage=1`, "_blank", "noopener,noreferrer")}
             onHelp={() => setHelp(true)}
-            onEdit={() => setEditing(true)}
             onNewMatch={() => setConfirmNew(true)}
             onPlayNow={playNow}
             roundMode={roundMode}
@@ -1064,13 +1062,6 @@ function Game() {
       </div>
 
       {help && <HelpOverlay onClose={() => setHelp(false)} />}
-      {editing && (
-        <EditDialog
-          q={q}
-          onClose={() => setEditing(false)}
-          onSave={(question) => { act({ type: "editQuestion", question }); setEditing(false); }}
-        />
-      )}
       {confirmNew && (
         <Modal onClose={() => setConfirmNew(false)} title="Start a new match?">
           <p className="text-muted-foreground">Both team scores go back to 0 and all questions become unused. Your edited questions are kept.</p>
@@ -1344,14 +1335,13 @@ function Podium({ s, team }: { s: GameState; team: Team }) {
 
 /* ---------------- HOST ---------------- */
 
-function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch, onPlayNow, roundMode, onRoundChange, bonus, onBonusChange, bonusGuess, setBonusGuess, bonusFeedback, submitBonusGuess, timer }: {
-  s: GameState; q: Question; act: (a: Action) => void; onStage: () => void; onHelp: () => void; onEdit: () => void; onNewMatch: () => void; onPlayNow: () => void;
+function HostPanel({ s, q, act, onStage, onHelp, onNewMatch, onPlayNow, roundMode, onRoundChange, bonus, onBonusChange, bonusGuess, setBonusGuess, bonusFeedback, submitBonusGuess, timer }: {
+  s: GameState; q: Question; act: (a: Action) => void; onStage: () => void; onHelp: () => void; onNewMatch: () => void; onPlayNow: () => void;
   roundMode: RoundMode; onRoundChange: (mode: RoundMode) => void; timer: TimerState; bonus: BonusState; onBonusChange: (next: BonusState) => void; bonusGuess: string; setBonusGuess: (value: string) => void; bonusFeedback: string; submitBonusGuess: () => void;
 }) {
   const safeBonusQuestions = normalizeBonusQuestions(bonus.questions);
   const safeBonusIndex = Math.min(4, Math.max(0, Number.isInteger(bonus.index) ? bonus.index : 0));
   const activeBonusQuestion = safeBonusQuestions[safeBonusIndex] ?? BONUS_DEFAULTS[0];
-  const unused = s.questions.filter((x) => !s.usedIds.includes(x.id)).length;
   return (
     <section className="mt-0 min-w-0 rounded-2xl border-2 border-dashed border-border bg-card p-3 sm:max-h-[calc(100vh-2.5rem)] sm:flex-1 sm:overflow-y-auto lg:p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -1368,6 +1358,11 @@ function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch, onPlayNow, 
           {([["classic","Round 1 · Classic ×1"],["double","Round 2 · Double ×2"],["triple","Round 3 · Triple ×3"],["bonus","Kingson Bonus Round"]] as [RoundMode,string][]).map(([mode,label]) => <button key={mode} className={roundMode===mode?btnGold:btnGhost} onClick={()=>onRoundChange(mode)}>{label}</button>)}
         </div>
         <p className="mt-2 text-xs text-muted-foreground">{roundMode==="classic"?"Normal survey points.":roundMode==="double"?"Every correct board answer earns double points.":roundMode==="triple"?"Every correct board answer earns triple points.":"Five host-checked questions. Each answer has a different value; five answers total 200 points."}</p>
+        <div className="mt-3 rounded-lg border border-gold/40 bg-card px-3 py-3">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Current question · Host view</div>
+          <div className="mt-1 font-semibold leading-relaxed text-foreground">{roundMode === "bonus" ? activeBonusQuestion.prompt : q.prompt}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{roundMode === "bonus" ? `Bonus question ${safeBonusIndex + 1} of 5` : "This is the question currently shown to the audience."}</div>
+        </div>
       </div>
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Round */}
@@ -1401,39 +1396,17 @@ function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch, onPlayNow, 
           ))}
         </div>
 
-        {/* Questions */}
+        {/* Match actions — question selection is automatic */}
         <div className="rounded-xl bg-muted p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Questions · {unused} unused</h3>
-            <button className="text-xs font-semibold text-electric hover:underline" onClick={onEdit}>Edit current</button>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button className={btnBlue} onClick={() => act({ type: "next" })}>Next question (N)</button>
-            <button className={btnGhost} onClick={() => act({ type: "next", random: true })}>Random (R)</button>
-          </div>
-          {s.bank > 0 && s.phase !== "awarded" && <p className="mt-2 text-xs text-destructive">Bank has {s.bank} unbanked points — moving on discards them.</p>}
-          <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto pr-1 text-sm">
-            {s.questions.map((x, i) => {
-              const used = s.usedIds.includes(x.id);
-              const cur = x.id === q.id;
-              return (
-                <li key={x.id}>
-                  <button disabled={cur} onClick={() => act({ type: "next", id: x.id })}
-                    className={`flex w-full items-center gap-2 rounded-md px-2 py-1 text-left ${cur ? "bg-secondary text-secondary-foreground" : "hover:bg-card"}`}>
-                    <span className="w-5 text-muted-foreground">{i + 1}.</span>
-                    <span className={`flex-1 truncate ${used && !cur ? "text-muted-foreground line-through" : ""}`}>{x.prompt}</span>
-                    <span className="text-[10px] uppercase">{cur ? "live" : used ? "used" : ""}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Match controls</h3>
+          {s.bank > 0 && s.phase !== "awarded" && <p className="mb-3 text-xs text-destructive">Bank has {s.bank} unbanked points — moving on discards them.</p>}
+          <div className="grid grid-cols-1 gap-2">
             {s.gameOver
               ? <button className={btnGhost} onClick={() => act({ type: "resumeGame" })}>Hide winner</button>
               : <button className={btnGold} onClick={() => act({ type: "endGame" })}>End game · show winner</button>}
             <button className={btnDanger} onClick={onNewMatch}>New match…</button>
           </div>
+          <p className="mt-2 text-xs text-muted-foreground">Questions are selected and shuffled automatically for every new match.</p>
         </div>
       </div>
 
