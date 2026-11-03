@@ -1191,11 +1191,18 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                 <div className="mt-[1cqh] font-display text-electric" style={{fontSize:"2.5cqh"}}>UP TO 200 POINTS AVAILABLE</div>
                 <div className="mt-[1.2cqh] grid w-full flex-1 min-h-0 grid-cols-1 grid-rows-5 gap-[.7cqh]">
                   {Array.from({ length: 5 }, (_, i) => {
-                    const response = bonus.revealed ? (bonus.responses?.[i] ?? "") : "";
+                    const submitted = bonus.pendingAnswers?.[i]?.trim() ?? "";
+                    const matched = submitted ? safeBonusQuestions[i].answers.find(a => answerMatches(submitted, a.text)) : undefined;
+                    const expected = [...safeBonusQuestions[i].answers].sort((a, b) => b.points - a.points)[0];
+                    const showExpected = bonus.revealed && submitted && (!matched || (expected && matched.text !== expected.text));
+                    const points = bonus.revealed && matched ? matched.points : 0;
                     return <div key={i} className="flex min-h-0 items-center gap-[2cqw] rounded-xl border-2 border-gold/50 bg-slate-950/75 px-[2cqw] py-[.45cqh]">
                       <span className="flex h-[5.5cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-mono font-semibold tabular-nums text-gold" style={{fontSize:"3.2cqh"}}>{i + 1}</span>
-                      <span className="min-w-0 flex-1 break-words text-left font-sans font-medium tracking-wide text-white" style={{fontSize:"3.1cqh",lineHeight:1.12}}>{response || "WAITING FOR ANSWER"}</span>
-                      <span className="shrink-0 rounded-lg bg-amber-400/15 px-[2cqw] py-[.5cqh] font-display font-black text-gold" style={{fontSize:"3.2cqh"}}>{response ? "+" + (safeBonusQuestions[i].answers.find(a => a.text === response)?.points ?? 0) : "—"}</span>
+                      <div className="min-w-0 flex-1 text-left">
+                        <div className="break-words font-sans font-medium tracking-wide text-white" style={{fontSize:"2.8cqh",lineHeight:1.08}}>{submitted || "WAITING FOR ANSWER"}</div>
+                        {showExpected && expected && <div className="mt-[.25cqh] break-words font-sans font-semibold tracking-wide text-emerald-300" style={{fontSize:"2.45cqh",lineHeight:1.05}}>CORRECT ANSWER: {expected.text}</div>}
+                      </div>
+                      <span className="shrink-0 rounded-lg bg-amber-400/15 px-[2cqw] py-[.5cqh] font-display font-black text-gold" style={{fontSize:"3.2cqh"}}>{bonus.revealed && matched ? "+" + points : "—"}</span>
                     </div>;
                   })}
                 </div>
