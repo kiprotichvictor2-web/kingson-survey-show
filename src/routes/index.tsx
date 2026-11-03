@@ -183,6 +183,7 @@ function Game() {
   const [autoPlay, setAutoPlay] = useState(false);
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
   const [finalResults, setFinalResults] = useState<FinalResults | null>(null);
+  const [bonusRevealComplete, setBonusRevealComplete] = useState(false);
   const [teamLeg, setTeamLeg] = useState<1 | 2>(1);
   const [roundPoints, setRoundPoints] = useState<Record<Team, TeamBreakdown>>({
     A: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 },
@@ -453,8 +454,17 @@ function Game() {
     return () => window.clearTimeout(timeout);
   }, [roundResult, stageOnly]);
   useEffect(() => {
+    if (!finalResults || !bonus.revealed) {
+      setBonusRevealComplete(false);
+      return;
+    }
+    setBonusRevealComplete(false);
+    const timeout = window.setTimeout(() => setBonusRevealComplete(true), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [finalResults, bonus.revealed]);
+  useEffect(() => {
     if (!finalResults || finalResults.finalMatch || stageOnly || showCountdown) return;
-    const timeout = window.setTimeout(() => beginCountdown("handover", 30), 3000);
+    const timeout = window.setTimeout(() => beginCountdown("handover", 30), 5000);
     return () => window.clearTimeout(timeout);
   }, [finalResults, stageOnly, showCountdown]);
   useEffect(() => {
@@ -1280,7 +1290,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
           </div>
         </div>
       )}
-      {finalResults && showCountdown?.target !== "handover" && (
+      {finalResults && showCountdown?.target !== "handover" && (!bonus.revealed || bonusRevealComplete) && (
         <div className="ks-final-show absolute inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto px-5 py-4 text-center">
           <div className="ks-final-rays pointer-events-none absolute inset-0" />
           <div className="relative z-10 w-full max-w-4xl">
