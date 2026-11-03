@@ -52,8 +52,8 @@ describe("game rules", () => {
     const s = run(initialState(), { type: "reveal", index: 0 }, { type: "award", team: "A" }, { type: "newMatch" });
     expect(s.scores).toEqual({ A: 0, B: 0 });
   });
-  it("bank has 60+ unique prompts, 6 answers, 100 points, no recycled answer sets", () => {
-    expect(DEFAULT_QUESTIONS.length).toBeGreaterThanOrEqual(60);
+  it("bank has 250 unique prompts, 6 answers, 100 points, no recycled answer sets", () => {
+    expect(DEFAULT_QUESTIONS).toHaveLength(250);
     expect(new Set(DEFAULT_QUESTIONS.map((q) => q.prompt.toLowerCase())).size).toBe(DEFAULT_QUESTIONS.length);
     expect(new Set(DEFAULT_QUESTIONS.map((q) => q.id)).size).toBe(DEFAULT_QUESTIONS.length);
     expect(new Set(DEFAULT_QUESTIONS.map((q) => q.answers.map((a) => a.text).join("|"))).size).toBe(DEFAULT_QUESTIONS.length);
