@@ -1379,30 +1379,15 @@ function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch, onPlayNow, 
 
       {roundMode === "bonus" ? (
         <div className="mt-4 rounded-xl border-2 border-gold/60 bg-muted p-4">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div className="mb-4 flex items-center justify-between gap-2">
             <h3 className="font-display text-xl text-gold">KINGSON BONUS MISSION</h3>
             <button className={btnBlue} onClick={onStage}>Open audience stage</button>
           </div>
-          <div className="mb-4 flex flex-wrap gap-2">
-            {([["classic","Classic"],["double","Double"],["triple","Triple"]] as [RoundMode,string][]).map(([mode,label]) => <button key={mode} className={btnGhost} onClick={() => onRoundChange(mode)}>{label}</button>)}
-            <button className={btnGold}>Bonus Mission</button>
-          </div>
-          <div className="grid gap-3">
-            {safeBonusQuestions.map((question,index) => (
-              <div key={index} className={"rounded-lg border p-3 " + (index===safeBonusIndex ? "border-gold bg-card" : "border-border bg-background/50")}>
-                <div className="mb-2 font-semibold text-gold">QUESTION {index+1}</div>
-                <div className="mb-2 font-medium text-foreground">{question.prompt}</div>
-                <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-5">
-                  {question.answers.map((answer,i) => <div key={i} className="rounded-md border border-border bg-background px-2 py-2 text-sm text-foreground">{answer.text} <span className="font-semibold text-gold">· {answer.points}</span></div>)}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-gold">Recording answer for question {safeBonusIndex+1}</span>
-            <input className="min-w-0 flex-1 rounded-md border border-input bg-card px-3 py-2" placeholder="Type the viewer's answer…" value={bonusGuess} disabled={Boolean(bonus.pendingAnswers?.[safeBonusIndex]) || bonus.revealed || !timer.running} onChange={e=>setBonusGuess(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();submitBonusGuess();}}} />
-            <button className={btnGold} disabled={!bonusGuess.trim() || Boolean(bonus.pendingAnswers?.[safeBonusIndex]) || bonus.revealed || !timer.running} onClick={submitBonusGuess}>Record answer</button>
-            <button className={btnGhost} onClick={()=>onBonusChange({...bonus,index:0,accepted:[],total:0,responses:["","","","",""],pendingAnswers:["","","","",""],revealed:false,correctCount:0})}>Reset</button>
+          <div className="mx-auto flex max-w-2xl flex-col gap-3 rounded-xl border border-gold/40 bg-background p-4">
+            <div className="text-center font-semibold text-gold">ENTERING ANSWER {safeBonusIndex + 1} OF 5</div>
+            <input className="w-full rounded-lg border-2 border-gold/50 bg-card px-4 py-4 text-lg text-foreground placeholder:text-muted-foreground" placeholder="Type the contestant's answer here…" aria-label="Contestant answer" value={bonusGuess} disabled={Boolean(bonus.pendingAnswers?.[safeBonusIndex]) || bonus.revealed || !timer.running} onChange={e => setBonusGuess(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); submitBonusGuess(); } }} />
+            <button className={btnGold + " w-full py-3"} disabled={!bonusGuess.trim() || Boolean(bonus.pendingAnswers?.[safeBonusIndex]) || bonus.revealed || !timer.running} onClick={submitBonusGuess}>Record Answer</button>
+            {bonusFeedback && <p className="text-center text-sm text-muted-foreground">{bonusFeedback}</p>}
           </div>
         </div>
       ) : (
