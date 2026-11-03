@@ -42,8 +42,9 @@ const ROUND_KEY = "kingson-survey-show-round-v1";
 type RoundMode = "classic" | "double" | "triple" | "bonus";
 type BonusAnswer = { text: string; points: number };
 type BonusQuestion = { prompt: string; answers: BonusAnswer[] };
+const BONUS_POINTS = [64, 51, 37, 27, 21] as const;
 const bonusQuestion = (prompt: string, answers: [string,string,string,string,string]): BonusQuestion => ({
-  prompt, answers: answers.map((text, i) => ({ text, points: [64,51,37,27,21][i] })),
+  prompt, answers: answers.map((text, i) => ({ text, points: BONUS_POINTS[i] ?? 0 })),
 });
 // A separate, large bonus bank. These prompts are not reused from the regular survey bank.
 const BONUS_DEFAULTS: BonusQuestion[] = [
@@ -99,10 +100,18 @@ const BONUS_DEFAULTS: BonusQuestion[] = [
   bonusQuestion("What might you see at an airport?", ["Airplanes","Luggage","Passengers","Security staff","Departure screens"]),
 ];
 const BONUS_USED_KEY = "kingson-survey-show-bonus-used-v1";
+// Always-defined stand-in for the first bonus question (array indexing is checked).
+const BONUS_FALLBACK: BonusQuestion = BONUS_DEFAULTS[0] ?? bonusQuestion("Name something people do to relax on a day off.", ["Sleep in", "Watch movies", "Visit friends", "Go for a walk", "Listen to music"]);
 const SURVEY_USED_KEY = "kingson-survey-show-survey-used-v1";
 function shuffled<T>(items: T[]): T[] {
   const copy = [...items];
-  for (let i = copy.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [copy[i], copy[j]] = [copy[j], copy[i]]; }
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const a = copy[i] as T;
+    const b = copy[j] as T;
+    copy[i] = b;
+    copy[j] = a;
+  }
   return copy;
 }
 function drawBonusQuestions(): BonusQuestion[] {
@@ -122,12 +131,12 @@ function drawBonusQuestions(): BonusQuestion[] {
 function normalizeBonusQuestions(value: unknown): BonusQuestion[] {
   const source = Array.isArray(value) ? value : [];
   return Array.from({ length: 5 }, (_, index) => {
-    const fallback = BONUS_DEFAULTS[index % BONUS_DEFAULTS.length] ?? BONUS_DEFAULTS[0];
+    const fallback = BONUS_DEFAULTS[index % BONUS_DEFAULTS.length] ?? BONUS_FALLBACK;
     const candidate = source[index] as Partial<BonusQuestion> | undefined;
     if (!candidate || typeof candidate.prompt !== "string" || !candidate.prompt.trim() || !Array.isArray(candidate.answers)) return structuredClone(fallback);
     const answers = Array.from({ length: 5 }, (_, answerIndex) => {
       const raw = candidate.answers?.[answerIndex] as Partial<BonusAnswer> | string | undefined;
-      const defaultAnswer = fallback.answers[answerIndex];
+      const defaultAnswer: BonusAnswer = fallback.answers[answerIndex] ?? { text: "", points: 0 };
       if (typeof raw === "string") return { text: raw, points: defaultAnswer.points };
       if (!raw || typeof raw.text !== "string") return { ...defaultAnswer };
       return { text: raw.text, points: Number.isFinite(raw.points) ? Number(raw.points) : defaultAnswer.points };
@@ -395,7 +404,8 @@ function Game() {
     const totalScore = s.scores[team] + pointsEarned;
     const opponent: Team = team === "A" ? "B" : "A";
     const teams = finalMatch ? { [team]: { breakdown, total: totalScore }, [opponent]: { breakdown: roundPoints[opponent] ?? { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 }, total: s.scores[opponent] } } as Record<Team, { breakdown: TeamBreakdown; total: number }> : undefined;
-    const final = { team, breakdown, total: totalScore, finalMatch, champion: finalMatch ? (totalScore > s.scores[opponent] ? team : totalScore < s.scores[opponent] ? opponent : "tie") : null, ...(teams ? { teams } : {}) };
+    const champion: Team | "tie" | null = finalMatch ? (totalScore > s.scores[opponent] ? team : totalScore < s.scores[opponent] ? opponent : "tie") : null;
+    const final = { team, breakdown, total: totalScore, finalMatch, champion, ...(teams ? { teams } : {}) };
     if (finalMatch) setGameplayMusicActive(false);
     setFinalResults(final);
     localStorage.setItem("kingson-survey-show-final-results-v1", JSON.stringify(final));
@@ -505,14 +515,14 @@ function Game() {
     return () => window.clearInterval(interval);
   }, [showCountdown, stageOnly, roundMode]);
   useEffect(() => {
-    if (!autoPlay || stageOnly || showCountdown || roundResult || transitionLockRef.current || roundMode === "bonus") return;
+    if (!autoPlay || stageOnly || showCountdown || roundResult || transitionLockRef.current || roundMode === "bonus") return undefined;
 
     const timeExpired = !timer.running && timer.remaining === 0;
     // When the clock expires, bank the playing team's points first. The
     // awarded phase then drives the same orderly reveal used after 3 strikes.
     if (timeExpired && s.phase !== "awarded") {
       actRef.current({ type: "award", team: s.active });
-      return;
+      return undefined;
     }
 
     const nextHidden = s.tiles.findIndex((tile) => tile === "hidden");
@@ -542,6 +552,7 @@ function Game() {
       else if (roundMode === "double") finishMainRound("double", "triple", 3);
       else if (roundMode === "triple") finishMainRound("triple", "bonus", 5);
     }
+    return undefined;
   }, [s, s.tiles, timer.running, timer.remaining, autoPlay, showCountdown, roundResult, roundMode, stageOnly]);  useEffect(() => {
     if (stageOnly || roundMode !== "bonus" || timer.running || timer.remaining !== 0 || bonus.revealed) return;
     finishBonusMission();
@@ -1107,7 +1118,7 @@ function LionCrest({ className = "" }: { className?: string }) {
 function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResult, finalResults, showCountdown }: { audienceWaiting: boolean; s: GameState; q: Question; strikeFlash: number; timer: TimerState; onReveal: (i: number) => void; roundMode: RoundMode; bonus: BonusState; roundResult: RoundResult | null; finalResults: FinalResults | null; showCountdown: { remaining: number; target: CountdownTarget } | null }) {
   const [flash, setFlash] = useState(false);
   const safeBonusQuestions = normalizeBonusQuestions(bonus.questions);
-  const activeBonusQuestion = safeBonusQuestions[Math.min(4, Math.max(0, bonus.index))] ?? BONUS_DEFAULTS[0];
+  const activeBonusQuestion = safeBonusQuestions[Math.min(4, Math.max(0, bonus.index))] ?? BONUS_FALLBACK;
   useEffect(() => {
     if (!strikeFlash) return;
     setFlash(true);
@@ -1137,11 +1148,12 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
 .ks-orb{position:absolute;width:24cqh;aspect-ratio:1;border-radius:50%;pointer-events:none;filter:blur(34px);opacity:.17;animation:ks-drift 9s ease-in-out infinite}
 .ks-title-glow{animation:ks-title 4s ease-in-out infinite}
 .ks-question{border:1px solid rgba(245,190,82,.62);background:linear-gradient(110deg,rgba(12,19,31,.92),rgba(65,32,94,.88),rgba(29,22,39,.92));box-shadow:0 10px 35px rgba(0,0,0,.3),0 0 24px rgba(245,185,66,.11),inset 0 1px rgba(255,255,255,.12);backdrop-filter:blur(12px)}
-.ks-tile{position:relative;overflow:hidden;border:1px solid rgba(245,190,82,.45);box-shadow:0 8px 18px rgba(0,0,0,.3),inset 0 1px rgba(255,255,255,.12);transition:transform .28s ease,filter .28s ease,box-shadow .28s ease;transform-style:preserve-3d}
+.ks-tile{position:relative;overflow:hidden;background:#050505;border:2px solid rgba(245,190,82,.55);box-shadow:0 8px 18px rgba(0,0,0,.35),inset 0 1px rgba(255,255,255,.12);transition:transform .28s ease,filter .28s ease,box-shadow .28s ease;transform-style:preserve-3d}
 .ks-tile:hover:not(:disabled){transform:translateY(-3px) scale(1.015);filter:brightness(1.2);box-shadow:0 12px 28px rgba(0,0,0,.4),0 0 18px rgba(180,110,255,.22)}
-.ks-tile.tile-closed{background:linear-gradient(135deg,#3b1b59,#241136 55%,#31164b)}
-.ks-tile.tile-open{background:linear-gradient(115deg,rgba(151,103,30,.98),rgba(44,57,68,.98) 58%,rgba(91,45,122,.98));animation:ks-tile-in .55s cubic-bezier(.2,.8,.2,1) both,ks-glow 3.2s ease-in-out infinite .55s}
-.ks-tile.tile-shown{background:linear-gradient(115deg,rgba(48,34,64,.96),rgba(26,16,38,.96));opacity:.88;animation:ks-tile-in .45s ease-out both}
+.ks-tile.tile-closed{background:#050505;border-color:rgba(245,190,82,.5)}
+.ks-tile.tile-open{background:#050505;border-color:rgba(245,190,82,.95);animation:ks-tile-in .55s cubic-bezier(.2,.8,.2,1) both,ks-glow 3.2s ease-in-out infinite .55s}
+.ks-tile.tile-shown{background:#050505;border-style:dashed;border-color:rgba(245,190,82,.32);animation:ks-tile-in .45s ease-out both}
+.ks-tile.tile-shown .ks-answer{color:rgba(255,255,255,.55)}
 .ks-podium{position:relative;overflow:hidden;background:linear-gradient(155deg,rgba(24,36,53,.92),rgba(7,12,22,.86));box-shadow:0 12px 30px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.08);backdrop-filter:blur(8px);transition:transform .35s ease,box-shadow .35s ease}
 .ks-podium-active{transform:translateY(-3px);box-shadow:0 0 26px rgba(168,85,247,.25),0 14px 32px rgba(0,0,0,.35),inset 0 0 22px rgba(168,85,247,.10)}
 .ks-winner-screen{background:radial-gradient(ellipse at 50% 42%,rgba(91,33,132,.48),transparent 55%),rgba(3,6,13,.94);backdrop-filter:blur(14px)}
@@ -1165,7 +1177,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
       <div className="spotlight pointer-events-none absolute -top-[10%] left-[8%] h-[120%] w-[30%]" />
       <div className="spotlight pointer-events-none absolute -top-[10%] right-[8%] h-[120%] w-[30%]" style={{ animationDelay: "-4.5s" }} />
 
-      <div className="relative flex h-full flex-col px-[3cqw] py-[2.2cqh]">
+      <div className="relative flex h-full flex-col px-[3cqw] py-[1.6cqh]">
         {/* header */}
         <div className="flex items-center justify-between">
           <div className="ks-title-glow font-display tracking-wide leading-none" style={{ fontSize: "3.4cqh" }}>
@@ -1179,12 +1191,12 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
         </div>
 
         {/* question */}
-        <div className="ks-question mt-[2cqh] rounded-xl px-[2cqw] py-[1.8cqh] text-center">
-          <h1 className="font-display uppercase leading-tight tracking-wide" style={{ fontSize: "4.6cqh" }}>{roundMode === "bonus" ? activeBonusQuestion.prompt : q.prompt}</h1>
+        <div className="ks-question mt-[1.2cqh] rounded-xl px-[2cqw] py-[1.1cqh] text-center">
+          <h1 className="font-display uppercase leading-tight tracking-wide" style={{ fontSize: "4.1cqh" }}>{roundMode === "bonus" ? activeBonusQuestion.prompt : q.prompt}</h1>
         </div>
 
         {/* body */}
-        <div className="mt-[2cqh] flex flex-1 min-h-0 flex-col gap-[1.2cqh]">
+        <div className="mt-[1.4cqh] flex flex-1 min-h-0 flex-col gap-[.9cqh]">
           <div className="grid grid-cols-2 gap-[1.5cqw]">
             <Podium s={s} team="A" />
             <Podium s={s} team="B" />
@@ -1197,8 +1209,9 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                 <div className="mt-[1.2cqh] grid w-full flex-1 min-h-0 grid-cols-1 grid-rows-5 gap-[.7cqh]">
                   {Array.from({ length: 5 }, (_, i) => {
                     const submitted = bonus.pendingAnswers?.[i]?.trim() ?? "";
-                    const matched = submitted ? safeBonusQuestions[i].answers.find(a => answerMatches(submitted, a.text)) : undefined;
-                    const expected = [...safeBonusQuestions[i].answers].sort((a, b) => b.points - a.points)[0];
+                    const rowQuestion = safeBonusQuestions[i] ?? BONUS_FALLBACK;
+                    const matched = submitted ? rowQuestion.answers.find(a => answerMatches(submitted, a.text)) : undefined;
+                    const expected = [...rowQuestion.answers].sort((a, b) => b.points - a.points)[0];
                     const showExpected = bonus.revealed && submitted && (!matched || (expected && matched.text !== expected.text));
                     const points = bonus.revealed && matched ? matched.points : 0;
                     return <div key={i} className="flex min-h-0 items-center gap-[2cqw] rounded-xl border-2 border-gold/50 bg-slate-950/75 px-[2cqw] py-[.45cqh]">
@@ -1221,11 +1234,11 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                 <span className="font-display text-gold" style={{fontSize:"2.3cqh"}}>{roundResult.mode.toUpperCase()} {roundResult.mode === "classic" ? "×1" : roundResult.mode === "double" ? "×2" : "×3"}</span>
               </div>
             )}
-            <div className="mb-[1.5cqh] flex items-center justify-center gap-[1cqw]">
+            <div className="mb-[1cqh] flex items-center justify-center gap-[1cqw]">
               <span className="font-display text-muted-foreground" style={{ fontSize: "2.4cqh" }}>ROUND BANK</span>
-              <span key={s.bank} className="pop font-display gold-text" style={{ fontSize: "5cqh", lineHeight: 1 }}>{s.bank}</span>
+              <span key={s.bank} className="pop font-display gold-text" style={{ fontSize: "4.4cqh", lineHeight: 1 }}>{s.bank}</span>
             </div>
-            <div className="grid flex-1 min-h-0 grid-cols-1 grid-rows-6 gap-[.7cqh]" style={{ perspective: 800 }}>
+            <div className="grid flex-1 min-h-0 grid-cols-1 grid-rows-6 gap-[1.5cqh]" style={{ perspective: 800 }}>
               {q.answers.map((ans, i) => {
                 const t = s.tiles[i];
                 return (
@@ -1233,16 +1246,16 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                     key={`${q.id}-${i}-${t}`}
                     onClick={() => onReveal(i)}
                     disabled={t !== "hidden"}
-                    className={`ks-tile flex min-h-0 items-center rounded-xl px-[2.2cqw] py-[.35cqh] text-left ${t === "hidden" ? "tile-closed cursor-pointer hover:brightness-125" : t === "scored" ? "tile-open" : "tile-shown"}`}
+                    className={`ks-tile flex min-h-0 items-center rounded-2xl px-[2cqw] py-[.55cqh] text-left ${t === "hidden" ? "tile-closed cursor-pointer hover:brightness-125" : t === "scored" ? "tile-open" : "tile-shown"}`}
                     aria-label={t === "hidden" ? `Reveal answer ${i + 1}` : `${ans.text} ${ans.points}`}
                   >
                     {t === "hidden" ? (
-                      <span className="mx-auto flex aspect-square h-[70%] items-center justify-center rounded-full bg-background/70 font-mono font-semibold tabular-nums text-gold" style={{ fontSize: "5cqh", border: "2px solid var(--gold)" }}>{i + 1}</span>
+                      <span className="mx-auto flex aspect-square h-[80%] items-center justify-center rounded-full bg-background/70 font-mono font-semibold tabular-nums text-gold" style={{ fontSize: "4.2cqh", border: "2px solid var(--gold)" }}>{i + 1}</span>
                     ) : (
                       <>
-                        <span className="mr-[2cqw] flex h-[5.5cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-mono font-semibold tabular-nums text-gold" style={{ fontSize: "3.2cqh" }}>{i + 1}</span>
-                        <span className="min-w-0 flex-1 whitespace-nowrap overflow-hidden font-sans font-semibold tracking-wide uppercase text-white" style={{ fontSize: `${Math.max(1.7, Math.min(3.4, 3.4 * 30 / Math.max(1, ans.text.length)))}cqh`, lineHeight: 1.08 }}>{ans.text}</span>
-                        <span className={`ml-[2cqw] flex h-[5.5cqh] min-w-[5.5cqh] shrink-0 items-center justify-center rounded-lg px-[1cqw] font-display font-black ${t === "scored" ? "bg-primary-foreground text-primary" : "bg-slate-950/70 text-gold"}`} style={{ fontSize: "3.5cqh" }}>{ans.points}</span>
+                        <span className="mr-[1.4cqw] flex h-[4.8cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-mono font-semibold tabular-nums text-gold" style={{ fontSize: "3.4cqh" }}>{i + 1}</span>
+                        <span className="ks-answer min-w-0 flex-1 whitespace-nowrap overflow-hidden font-sans font-semibold tracking-wide uppercase text-white" style={{ fontSize: `${Math.max(1.9, Math.min(3.8, 3.8 * 30 / Math.max(1, ans.text.length)))}cqh`, lineHeight: 1.08 }}>{ans.text}</span>
+                        <span className={`ml-[1.4cqw] flex h-[4.8cqh] min-w-[5cqh] shrink-0 items-center justify-center rounded-xl px-[.8cqw] font-display font-black ${t === "scored" ? "bg-primary-foreground text-primary" : "bg-slate-950/70 text-gold"}`} style={{ fontSize: "4cqh" }}>{ans.points}</span>
                       </>
                     )}
                   </button>
@@ -1250,7 +1263,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
               })}
             </div>
             {/* strikes */}
-            <div className="mt-[.8cqh] flex h-[5.5cqh] shrink-0 items-center justify-center gap-[1.5cqw]">
+            <div className="mt-[.8cqh] flex h-[5cqh] shrink-0 items-center justify-center gap-[1.5cqw]">
               {!s.lastAward && [0, 1, 2].map((i) => (
                 <div key={i} className={`flex aspect-square h-full items-center justify-center rounded-lg border-2 font-display ${i < s.strikes ? "pop border-destructive bg-destructive/20 text-destructive" : "border-border text-border"}`} style={{ fontSize: "7cqh", lineHeight: 1 }}>✕</div>
               ))}
@@ -1298,7 +1311,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
               {([finalResults.champion === "tie" ? finalResults.team : finalResults.champion as Team, (finalResults.champion === "tie" ? (finalResults.team === "A" ? "B" : "A") : finalResults.champion === "A" ? "B" : "A")] as Team[]).map((team,rank)=><div key={team} className={"rounded-xl border-2 px-2 py-2 "+(rank===0?"border-yellow-300 bg-yellow-400/15":"border-purple-300/60 bg-purple-950/70")}>
                 <div className="font-display text-yellow-200" style={{fontSize:"2.7cqh"}}>{finalResults.champion === "tie" ? "TIED" : rank===0?"🏆 1ST PLACE":"2ND PLACE"}</div>
                 <div className="mt-1 truncate font-display text-white" style={{fontSize:"3.5cqh"}}>{s.teamNames[team]}</div>
-                <div className="font-display font-black text-yellow-200" style={{fontSize:"5.2cqh",lineHeight:1.05}}>{finalResults.teams[team].total.toLocaleString()}</div>
+                <div className="font-display font-black text-yellow-200" style={{fontSize:"5.2cqh",lineHeight:1.05}}>{(finalResults.teams?.[team]?.total ?? 0).toLocaleString()}</div>
                 <div className="text-white/70" style={{fontSize:"2cqh"}}>POINTS</div>
               </div>)}
             </div> : <div className="ks-final-team mx-auto mt-2 inline-flex items-center justify-center rounded-full border-2 border-yellow-300/80 px-6 py-1 font-display text-yellow-100" style={{fontSize:"3.5cqh"}}>{s.teamNames[finalResults.team]}</div>}
@@ -1306,7 +1319,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
               {([["CLASSIC ROUND",finalResults.breakdown.classic,"#12b8e8"],["DOUBLE ROUND ×2",finalResults.breakdown.double,"#8b5cf6"],["TRIPLE ROUND ×3",finalResults.breakdown.triple,"#ec4899"],["KINGSON BONUS MISSION",finalResults.breakdown.bonus,"#f59e0b"],["500-POINT REWARD",finalResults.breakdown.bonusExtra,"#22c55e"]] as [string,number,string][]).map(([label,points,tint],index)=><div key={label} className="ks-final-row col-span-2 grid grid-cols-[1fr_auto] items-center rounded-xl border-l-4 px-4 py-1.5" style={{borderLeftColor:tint,background:`linear-gradient(100deg,${tint}38,rgba(20,10,32,.94) 72%)`,animationDelay:`${index*100}ms`}}><div className="font-display text-white" style={{fontSize:"2.9cqh"}}>{label}</div><div className="font-display font-black text-white" style={{fontSize:"3.6cqh"}}>{points.toLocaleString()} <span className="text-yellow-200" style={{fontSize:"2cqh"}}>PTS</span></div></div>)}
               <div className="ks-final-total col-span-2 mt-1 flex items-center justify-between rounded-2xl border-2 border-yellow-300 px-5 py-2"><div className="font-display font-black text-white" style={{fontSize:"3.8cqh"}}>GRAND TOTAL</div><div className="font-display font-black text-yellow-200" style={{fontSize:"7cqh",lineHeight:1}}>{finalResults.total.toLocaleString()}</div></div>
             </div>
-            {finalResults.finalMatch ? <div className="ks-final-champion mt-3 font-display font-black text-yellow-200" style={{fontSize:"5cqh"}}>{finalResults.champion === "tie" ? "🏆 IT'S A TIE! 🏆" : "🏆 CHAMPION: " + s.teamNames[finalResults.champion as Team] + " 🏆"}</div> : <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-purple-300/70 bg-purple-950/90 px-5 py-2 font-display text-white" style={{fontSize:"3cqh"}}>TEAM B PREPARES IN <span className="font-black text-yellow-300">{showCountdown?.target === "handover" ? showCountdown.remaining : 30}</span> SECONDS</div>}
+            {finalResults.finalMatch ? <div className="ks-final-champion mt-3 font-display font-black text-yellow-200" style={{fontSize:"5cqh"}}>{finalResults.champion === "tie" ? "🏆 IT'S A TIE! 🏆" : "🏆 CHAMPION: " + s.teamNames[finalResults.champion as Team] + " 🏆"}</div> : <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-purple-300/70 bg-purple-950/90 px-5 py-2 font-display text-white" style={{fontSize:"3cqh"}}>TEAM B PREPARES IN <span className="font-black text-yellow-300">{30}</span> SECONDS</div>}
           </div>
         </div>
       )}
@@ -1355,7 +1368,7 @@ function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch, onPlayNow, 
 }) {
   const safeBonusQuestions = normalizeBonusQuestions(bonus.questions);
   const safeBonusIndex = Math.min(4, Math.max(0, Number.isInteger(bonus.index) ? bonus.index : 0));
-  const activeBonusQuestion = safeBonusQuestions[safeBonusIndex] ?? BONUS_DEFAULTS[0];
+  const activeBonusQuestion = safeBonusQuestions[safeBonusIndex] ?? BONUS_FALLBACK;
   const unused = s.questions.filter((x) => !s.usedIds.includes(x.id)).length;
   return (
     <section className="mt-0 min-w-0 rounded-2xl border-2 border-dashed border-border bg-card p-3 sm:max-h-[calc(100vh-2.5rem)] sm:flex-1 sm:overflow-y-auto lg:p-4">
@@ -1471,10 +1484,10 @@ function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch, onPlayNow, 
             <button className={btnGhost} onClick={()=>onBonusChange({...bonus,index:0,accepted:[],total:0,responses:["","","","",""],pendingAnswers:["","","","",""],revealed:false,correctCount:0})}>Reset bonus round</button>
           </div>
           <label className="mt-3 block text-xs font-bold uppercase text-muted-foreground">Question shown to viewers</label>
-          <input className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2" value={activeBonusQuestion.prompt} onChange={e=>{const questions=[...safeBonusQuestions];questions[safeBonusIndex]={...questions[safeBonusIndex],prompt:e.target.value};onBonusChange({...bonus,questions});}} />
+          <input className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2" value={activeBonusQuestion.prompt} onChange={e=>{const questions=safeBonusQuestions.map((item,index)=>index===safeBonusIndex?{...item,prompt:e.target.value}:item);onBonusChange({...bonus,questions});}} />
           <label className="mt-3 block text-xs font-bold uppercase text-muted-foreground">Private accepted answers · edit these before the show</label>
           <div className="mt-1 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            {(activeBonusQuestion ?? BONUS_DEFAULTS[0]).answers.map((answer,i)=><div key={i} className="flex min-w-0 gap-1"><input aria-label={"Bonus accepted answer "+(i+1)} className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-2 text-sm" value={answer.text} onChange={e=>{const questions=[...safeBonusQuestions];const answers=[...questions[safeBonusIndex].answers];answers[i]={...answer,text:e.target.value};questions[safeBonusIndex]={...questions[safeBonusIndex],answers};onBonusChange({...bonus,questions});}} /><span className="flex w-16 items-center justify-center rounded-md border border-border bg-card px-1 py-2 text-sm font-semibold text-gold">{answer.points}</span></div>)}
+            {activeBonusQuestion.answers.map((answer,i)=><div key={i} className="flex min-w-0 gap-1"><input aria-label={"Bonus accepted answer "+(i+1)} className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-2 text-sm" value={answer.text} onChange={e=>{const questions=safeBonusQuestions.map((item,index)=>index===safeBonusIndex?{...item,answers:item.answers.map((a,ai)=>ai===i?{...a,text:e.target.value}:a)}:item);onBonusChange({...bonus,questions});}} /><span className="flex w-16 items-center justify-center rounded-md border border-border bg-card px-1 py-2 text-sm font-semibold text-gold">{answer.points}</span></div>)}
           </div>
           <p className={"mt-2 text-xs font-semibold " + (activeBonusQuestion.answers.reduce((sum,a)=>sum+a.points,0)===200?"text-gold":"text-destructive")}>Answer points total: {activeBonusQuestion.answers.reduce((sum,a)=>sum+a.points,0)} / 200</p>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -1530,8 +1543,10 @@ function AnswerKey({ s, q, act }: { s: GameState; q: Question; act: (a: Action) 
     const hiddenMatches = matchingIndexes.filter((i) => s.tiles[i] === "hidden");
 
     if (hiddenMatches.length === 1) {
-      act({ type: "reveal", index: hiddenMatches[0] });
-      setFeedback(`Correct! “${q.answers[hiddenMatches[0]].text}” is on the board.`);
+      const first = hiddenMatches[0];
+      if (first === undefined) return;
+      act({ type: "reveal", index: first });
+      setFeedback(`Correct! “${q.answers[first]?.text ?? ""}” is on the board.`);
       setGuess("");
       return;
     }
