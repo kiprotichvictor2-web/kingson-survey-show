@@ -183,7 +183,6 @@ function Game() {
   const [autoPlay, setAutoPlay] = useState(false);
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
   const [finalResults, setFinalResults] = useState<FinalResults | null>(null);
-  const [bonusRevealComplete, setBonusRevealComplete] = useState(false);
   const [teamLeg, setTeamLeg] = useState<1 | 2>(1);
   const [roundPoints, setRoundPoints] = useState<Record<Team, TeamBreakdown>>({
     A: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 },
@@ -191,7 +190,6 @@ function Game() {
   });
   const roundStartScoresRef = useRef<Record<Team, number>>({ A: 0, B: 0 });
   const transitionLockRef = useRef(false);
-  const bonusFinishLockRef = useRef(false);
 
   useEffect(() => {
     const isStage = new URLSearchParams(window.location.search).get("stage") === "1";
@@ -306,7 +304,7 @@ function Game() {
     };
     const syncTimer = (event: StorageEvent) => { if (event.key === TIMER_KEY && event.newValue) { try { setTimer(JSON.parse(event.newValue) as TimerState); } catch { /* Ignore invalid updates. */ } } };
     const syncRound = (event: StorageEvent) => { if (event.key === ROUND_KEY && event.newValue) setRoundMode(event.newValue as RoundMode); };
-    const syncBonus = (event: StorageEvent) => { if (event.key === BONUS_STORAGE_KEY && event.newValue) { try { const parsed = JSON.parse(event.newValue) as Partial<BonusState>; setBonus({ questions: normalizeBonusQuestions(parsed.questions), index: Number.isInteger(parsed.index) ? Math.min(4, Math.max(0, Number(parsed.index))) : 0, accepted: Array.isArray(parsed.accepted) ? parsed.accepted.filter((x): x is string => typeof x === "string") : [], total: Number.isFinite(parsed.total) ? Number(parsed.total) : 0, responses: Array.from({ length: 5 }, (_, i) => typeof parsed.responses?.[i] === "string" ? parsed.responses[i] as string : ""), pendingAnswers: Array.from({ length: 5 }, (_, i) => typeof parsed.pendingAnswers?.[i] === "string" ? parsed.pendingAnswers[i] as string : ""), revealed: Boolean(parsed.revealed), correctCount: Number.isFinite(parsed.correctCount) ? Number(parsed.correctCount) : 0 }); } catch { /* Ignore invalid updates. */ } } };
+    const syncBonus = (event: StorageEvent) => { if (event.key === BONUS_STORAGE_KEY && event.newValue) { try { setBonus(JSON.parse(event.newValue) as BonusState); } catch { /* Ignore invalid updates. */ } } };
     const syncCountdown = (event: StorageEvent) => { if (event.key === "kingson-survey-show-countdown-v1") { try { setShowCountdown(event.newValue ? JSON.parse(event.newValue) : null); } catch { /* Ignore invalid updates. */ } } };
     const syncGameStarted = (event: StorageEvent) => { if (event.key === GAME_STARTED_KEY) setAudienceGameStarted(event.newValue === "true"); };
     const syncResult = (event: StorageEvent) => { if (event.key === RESULT_KEY) { try { setRoundResult(event.newValue ? JSON.parse(event.newValue) as RoundResult : null); } catch { /* Ignore invalid updates. */ } } };
@@ -368,15 +366,11 @@ function Game() {
     setBonusGuess("");
   };
   const finishBonusMission = () => {
-    if (bonus.revealed || bonusFinishLockRef.current) return;
-    bonusFinishLockRef.current = true;
-    const questions = normalizeBonusQuestions(bonus.questions);
-    const pendingAnswers = Array.from({ length: 5 }, (_, index) =>
-      typeof bonus.pendingAnswers?.[index] === "string" ? bonus.pendingAnswers[index] as string : ""
-    );
+    if (bonus.revealed) return;
+    const pendingAnswers = bonus.pendingAnswers ?? ["", "", "", "", ""];
     let correctCount = 0;
     let total = 0;
-    const responses = questions.map((question, index) => {
+    const responses = bonus.questions.map((question, index) => {
       const guess = pendingAnswers[index]?.trim();
       if (!guess) return "No answer";
       const match = question.answers.find((answer) => answerMatches(guess, answer.text));
@@ -386,12 +380,12 @@ function Game() {
     const extraBonus = correctCount >= 3 ? 500 : 0;
     const team = s.active;
     const pointsEarned = total + extraBonus;
-    const accepted = questions.flatMap((question, index) => {
+    const accepted = bonus.questions.flatMap((question, index) => {
       const guess = pendingAnswers[index]?.trim();
       const match = guess ? question.answers.find((answer) => answerMatches(guess, answer.text)) : undefined;
       return match ? [index + ":" + normText(match.text)] : [];
     });
-    updateBonus({ ...bonus, questions, index: 4, pendingAnswers, responses, accepted, total, correctCount, revealed: true });
+    updateBonus({ ...bonus, index: 4, pendingAnswers, responses, accepted, total, correctCount, revealed: true });
     if (pointsEarned > 0) actRef.current({ type: "adjustScore", team, delta: pointsEarned });
     setBonusFeedback("Bonus Mission complete: " + correctCount + "/5 correct. " + total + " points" + (extraBonus ? " + 500 bonus points." : "."));
     if (correctCount > 0) playAudienceApplause();
@@ -459,67 +453,56 @@ function Game() {
     return () => window.clearTimeout(timeout);
   }, [roundResult, stageOnly]);
   useEffect(() => {
-    if (!finalResults || !bonus.revealed) {
-      setBonusRevealComplete(false);
-      return;
-    }
-    setBonusRevealComplete(false);
-    const timeout = window.setTimeout(() => setBonusRevealComplete(true), 5000);
-    return () => window.clearTimeout(timeout);
-  }, [finalResults, bonus.revealed]);
-  useEffect(() => {
     if (!finalResults || finalResults.finalMatch || stageOnly || showCountdown) return;
-    const timeout = window.setTimeout(() => beginCountdown("handover", 30), 5000);
+    const timeout = window.setTimeout(() => beginCountdown("handover", 30), 3000);
     return () => window.clearTimeout(timeout);
   }, [finalResults, stageOnly, showCountdown]);
   useEffect(() => {
     if (!showCountdown || stageOnly) return;
-    const timeout = window.setTimeout(() => {
-      if (showCountdown.remaining > 1) {
-        const next = { ...showCountdown, remaining: showCountdown.remaining - 1 };
-        localStorage.setItem("kingson-survey-show-countdown-v1", JSON.stringify(next));
-        setShowCountdown(next);
-        return;
-      }
-
-      // Run transition side effects in the effect, not inside a state updater.
-      // React may replay updater functions, which can otherwise duplicate the
-      // team handover and leave the host view in a broken transition.
-      localStorage.removeItem("kingson-survey-show-countdown-v1");
-      if (showCountdown.target === "handover") {
-        const nextTeam: Team = stateRef.current.active === "A" ? "B" : "A";
-        const currentState = stateRef.current;
-        const questionId = roundQuestions?.[nextTeam].classic;
-        const switched = questionId ? reducer({ ...currentState, active: nextTeam, controlTeam: nextTeam, phase: "play" }, { type: "next", id: questionId }) : { ...currentState, active: nextTeam, controlTeam: nextTeam, phase: "play" as const };
-        dispatch({ type: "__load", s: switched });
-        setRoundMode("classic");
-        localStorage.setItem(ROUND_KEY, "classic");
-        setTeamLeg(2);
-        bonusFinishLockRef.current = false;
-        setFinalResults(null);
-        localStorage.removeItem("kingson-survey-show-final-results-v1");
-        setRoundPoints(previous => ({ ...previous, [nextTeam]: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 } }));
-        const freshBonus = { ...bonus, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0, pendingAnswers: ["", "", "", "", ""], revealed: false };
-        setBonus(freshBonus);
-        localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus));
-        setAutoPlay(true);
-        roundStartScoresRef.current = { ...switched.scores };
-        updateTimer({ duration: 60, remaining: 60, running: true, endsAt: Date.now() + 60000 });
-      } else if (showCountdown.target === "bonus") {
-        bonusFinishLockRef.current = false;
-        changeRound("bonus");
-        setAutoPlay(false);
-        roundStartScoresRef.current = { ...stateRef.current.scores };
-        updateTimer({ duration: 60, remaining: 60, running: true, endsAt: Date.now() + 60000 });
-      } else {
-        if (showCountdown.target !== roundMode) changeRound(showCountdown.target);
-        roundStartScoresRef.current = { ...stateRef.current.scores };
-        updateTimer({ duration: 60, remaining: 60, running: true, endsAt: Date.now() + 60000 });
-      }
-      transitionLockRef.current = false;
-      setShowCountdown(null);
+    const interval = window.setInterval(() => {
+      setShowCountdown((current) => {
+        if (!current) return null;
+        if (current.remaining > 1) {
+          const next = { ...current, remaining: current.remaining - 1 };
+          localStorage.setItem("kingson-survey-show-countdown-v1", JSON.stringify(next));
+          return next;
+        }
+        localStorage.removeItem("kingson-survey-show-countdown-v1");
+        if (current.target === "handover") {
+          const nextTeam: Team = stateRef.current.active === "A" ? "B" : "A";
+          const currentState = stateRef.current;
+          const questionId = roundQuestions?.[nextTeam].classic;
+          const switched = questionId ? reducer({ ...currentState, active: nextTeam, controlTeam: nextTeam, phase: "play" }, { type: "next", id: questionId }) : { ...currentState, active: nextTeam, controlTeam: nextTeam, phase: "play" as const };
+          dispatch({ type: "__load", s: switched });
+          setRoundMode("classic");
+          localStorage.setItem(ROUND_KEY, "classic");
+          setTeamLeg(2);
+          setFinalResults(null);
+          localStorage.removeItem("kingson-survey-show-final-results-v1");
+          setRoundPoints((previous) => ({ ...previous, [nextTeam]: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 } }));
+          const freshBonus = { ...bonus, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0, pendingAnswers: ["", "", "", "", ""], revealed: false };
+          setBonus(freshBonus);
+          localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus));
+          setAutoPlay(true);
+          roundStartScoresRef.current = { ...switched.scores };
+          const started = { duration: 60, remaining: 60, running: true, endsAt: Date.now() + 60000 };
+          updateTimer(started);
+        } else if (current.target === "bonus") {
+          changeRound("bonus");
+          setAutoPlay(false);
+          roundStartScoresRef.current = { ...stateRef.current.scores };
+          updateTimer({ duration: 60, remaining: 60, running: true, endsAt: Date.now() + 60000 });
+        } else {
+          if (current.target !== roundMode) changeRound(current.target);
+          roundStartScoresRef.current = { ...stateRef.current.scores };
+          const started = { duration: 60, remaining: 60, running: true, endsAt: Date.now() + 60000 };
+          updateTimer(started);
+        }
+        transitionLockRef.current = false;
+        return null;
+      });
     }, 1000);
-    return () => window.clearTimeout(timeout);
+    return () => window.clearInterval(interval);
   }, [showCountdown, stageOnly, roundMode]);
   useEffect(() => {
     if (!autoPlay || stageOnly || showCountdown || roundResult || transitionLockRef.current || roundMode === "bonus") return;
@@ -1098,7 +1081,7 @@ function Game() {
           <p className="text-muted-foreground">Both team scores go back to 0 and all questions become unused. Your edited questions are kept.</p>
           <div className="mt-5 flex justify-end gap-2">
             <button className={btnGhost} onClick={() => setConfirmNew(false)}>Cancel</button>
-            <button className={btnDanger} onClick={() => { const fresh = reducer(s, { type: "newMatch" }); const drawnIds = drawSurveyIds(fresh.questions); const assignments: RoundQuestionsByTeam = { A: { classic: drawnIds[0] ?? fresh.currentId, double: drawnIds[1] ?? fresh.currentId, triple: drawnIds[2] ?? fresh.currentId }, B: { classic: drawnIds[3] ?? fresh.currentId, double: drawnIds[4] ?? fresh.currentId, triple: drawnIds[5] ?? fresh.currentId } }; const started = reducer({ ...fresh, usedIds: [] }, { type: "next", id: assignments.A.classic }); dispatch({ type: "__load", s: started }); setRoundQuestions(assignments); localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments)); setTeamLeg(1); bonusFinishLockRef.current = false; transitionLockRef.current = false; setFinalResults(null); localStorage.removeItem(RESULT_KEY); localStorage.removeItem("kingson-survey-show-countdown-v1"); localStorage.setItem(GAME_STARTED_KEY, "false"); setAudienceGameStarted(false); localStorage.removeItem("kingson-survey-show-final-results-v1"); setBonusGuess(""); setBonusFeedback(""); setRoundPoints({ A: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 }, B: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 } }); setAutoPlay(false); setRoundResult(null); setShowCountdown(null); setRoundMode("classic"); localStorage.setItem(ROUND_KEY, "classic"); const freshBonus = { ...bonus, questions: drawBonusQuestions(), index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0, pendingAnswers: ["", "", "", "", ""], revealed: false }; setBonus(freshBonus); localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus)); setTimer({ duration: 60, remaining: 60, running: false, endsAt: null }); localStorage.setItem(TIMER_KEY, JSON.stringify({ duration: 60, remaining: 60, running: false, endsAt: null })); setGameplayMusicActive(false); setThemePlayerActive(true); setWelcomeOpen(false); setConfirmNew(false); }}>Yes, new match</button>
+            <button className={btnDanger} onClick={() => { const fresh = reducer(s, { type: "newMatch" }); const drawnIds = drawSurveyIds(fresh.questions); const assignments: RoundQuestionsByTeam = { A: { classic: drawnIds[0] ?? fresh.currentId, double: drawnIds[1] ?? fresh.currentId, triple: drawnIds[2] ?? fresh.currentId }, B: { classic: drawnIds[3] ?? fresh.currentId, double: drawnIds[4] ?? fresh.currentId, triple: drawnIds[5] ?? fresh.currentId } }; const started = reducer({ ...fresh, usedIds: [] }, { type: "next", id: assignments.A.classic }); dispatch({ type: "__load", s: started }); setRoundQuestions(assignments); localStorage.setItem(ROUND_QUESTIONS_KEY, JSON.stringify(assignments)); setTeamLeg(1); setFinalResults(null); localStorage.setItem(GAME_STARTED_KEY, "false"); setAudienceGameStarted(false); localStorage.removeItem("kingson-survey-show-final-results-v1"); setRoundPoints({ A: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 }, B: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 } }); setAutoPlay(false); setRoundResult(null); setShowCountdown(null); setRoundMode("classic"); localStorage.setItem(ROUND_KEY, "classic"); const freshBonus = { ...bonus, questions: drawBonusQuestions(), index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0, pendingAnswers: ["", "", "", "", ""], revealed: false }; setBonus(freshBonus); localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus)); setTimer({ duration: 60, remaining: 60, running: false, endsAt: null }); localStorage.setItem(TIMER_KEY, JSON.stringify({ duration: 60, remaining: 60, running: false, endsAt: null })); setGameplayMusicActive(false); setThemePlayerActive(true); setWelcomeOpen(false); setConfirmNew(false); }}>Yes, new match</button>
           </div>
         </Modal>
       )}
@@ -1297,7 +1280,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
           </div>
         </div>
       )}
-      {finalResults && showCountdown?.target !== "handover" && (!bonus.revealed || bonusRevealComplete) && (
+      {finalResults && showCountdown?.target !== "handover" && (
         <div className="ks-final-show absolute inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto px-5 py-4 text-center">
           <div className="ks-final-rays pointer-events-none absolute inset-0" />
           <div className="relative z-10 w-full max-w-4xl">
@@ -1384,77 +1367,124 @@ function HostPanel({ s, q, act, onStage, onHelp, onEdit, onNewMatch, onPlayNow, 
         </div>
       </div>
 
-      {roundMode === "bonus" ? (
-        <div className="mt-4 rounded-xl border-2 border-gold/60 bg-muted p-4">
-          <div className="mb-4 flex items-center justify-between gap-2">
-            <h3 className="font-display text-xl text-gold">KINGSON BONUS MISSION</h3>
-            <button className={btnBlue} onClick={onStage}>Open audience stage</button>
+      <div className="mb-4 rounded-xl border border-electric/40 bg-muted p-3">
+        <h3 className="mb-2 font-display text-lg text-gold">SHOW ROUNDS</h3>
+        <div className="flex flex-wrap gap-2">
+          {([["classic","Round 1 · Classic ×1"],["double","Round 2 · Double ×2"],["triple","Round 3 · Triple ×3"],["bonus","Kingson Bonus Round"]] as [RoundMode,string][]).map(([mode,label]) => <button key={mode} className={roundMode===mode?btnGold:btnGhost} onClick={()=>onRoundChange(mode)}>{label}</button>)}
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">{roundMode==="classic"?"Normal survey points.":roundMode==="double"?"Every correct board answer earns double points.":roundMode==="triple"?"Every correct board answer earns triple points.":"Five host-checked questions. Each answer has a different value; five answers total 200 points."}</p>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Round */}
+        <div className="rounded-xl bg-muted p-3">
+          <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Playing team</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {(["A", "B"] as Team[]).map((t) => (
+              <button key={t} disabled={s.phase !== "play"} onClick={() => act({ type: "setActive", team: t })}
+                className={`${btn} border-2 ${s.active === t ? "border-electric bg-secondary text-secondary-foreground" : "border-border bg-card text-foreground"}`}>
+                {s.teamNames[t]} ({t})
+              </button>
+            ))}
           </div>
-          <div className="mx-auto flex max-w-2xl flex-col gap-3 rounded-xl border border-gold/40 bg-background p-4">
-            <div className="text-center font-semibold text-gold">ENTERING ANSWER {safeBonusIndex + 1} OF 5</div>
-            <input className="w-full rounded-lg border-2 border-gold/50 bg-card px-4 py-4 text-lg text-foreground placeholder:text-muted-foreground" placeholder="Type the contestant's answer here…" aria-label="Contestant answer" value={bonusGuess} disabled={Boolean(bonus.pendingAnswers?.[safeBonusIndex]) || bonus.revealed || !timer.running} onChange={e => setBonusGuess(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); submitBonusGuess(); } }} />
-            <button className={btnGold + " w-full py-3"} disabled={!bonusGuess.trim() || Boolean(bonus.pendingAnswers?.[safeBonusIndex]) || bonus.revealed || !timer.running} onClick={submitBonusGuess}>Record Answer</button>
-            {bonusFeedback && <p className="text-center text-sm text-muted-foreground">{bonusFeedback}</p>}
+          <div className="mt-3 text-sm">
+            {s.phase === "play" && <>Strikes: <b className="text-destructive">{s.strikes}/3</b> · Click tiles or press 1–6.</>}
+            
+            {s.phase === "awarded" && <span className="text-muted-foreground">Round finished. The remaining answers are revealed automatically before the next round.</span>}
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button className={btnDanger} disabled={s.phase === "awarded"} onClick={() => act({ type: "strike" })}>
+              ✕ Strike (X)
+            </button>
+            <button className={btnGhost} disabled={s.phase === "awarded" || (s.phase === "play" && s.strikes === 0)} onClick={() => act({ type: "undoStrike" })}>Undo strike</button>
+          </div>
+          
+        </div>
+
+        {/* Bank */}
+        <div className="rounded-xl bg-muted p-3">
+          <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Round bank: <span className="text-gold text-base">{s.bank}</span></h3>
+          <div className="grid grid-cols-2 gap-2">
+            {(["A", "B"] as Team[]).map((t) => (
+              <button key={t} className={t === s.active ? btnGold : btnGhost} disabled={s.phase === "awarded"} onClick={() => act({ type: "award", team: t })}>
+                Bank to {s.teamNames[t]}{t === s.active ? " (Space)" : ""}
+              </button>
+            ))}
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button className={btnGhost} disabled={s.tiles.every((t) => t !== "hidden")} onClick={() => act({ type: "showAll" })}>Show remaining answers</button>
+            <button className={btnGhost} onClick={() => act({ type: "resetRound" })}>Reset this round</button>
+          </div>
+          <h3 className="mb-2 mt-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">Scores (manual fix)</h3>
+          {(["A", "B"] as Team[]).map((t) => (
+            <div key={t} className="mb-2 flex items-center gap-2">
+              <input aria-label={`Team ${t} name`} className="w-28 flex-1 rounded-md border border-input bg-card px-2 py-1 text-sm" value={s.teamNames[t]}
+                onChange={(e) => act({ type: "renameTeam", team: t, name: e.target.value.toUpperCase() })} />
+              <span className="w-12 text-right font-display text-gold">{s.scores[t]}</span>
+              <button className={btnGhost} onClick={() => act({ type: "adjustScore", team: t, delta: -5 })}>−5</button>
+              <button className={btnGhost} onClick={() => act({ type: "adjustScore", team: t, delta: 5 })}>+5</button>
+            </div>
+          ))}
+        </div>
+
+        {/* Questions */}
+        <div className="rounded-xl bg-muted p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Questions · {unused} unused</h3>
+            <button className="text-xs font-semibold text-electric hover:underline" onClick={onEdit}>Edit current</button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button className={btnBlue} onClick={() => act({ type: "next" })}>Next question (N)</button>
+            <button className={btnGhost} onClick={() => act({ type: "next", random: true })}>Random (R)</button>
+          </div>
+          {s.bank > 0 && s.phase !== "awarded" && <p className="mt-2 text-xs text-destructive">Bank has {s.bank} unbanked points — moving on discards them.</p>}
+          <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto pr-1 text-sm">
+            {s.questions.map((x, i) => {
+              const used = s.usedIds.includes(x.id);
+              const cur = x.id === q.id;
+              return (
+                <li key={x.id}>
+                  <button disabled={cur} onClick={() => act({ type: "next", id: x.id })}
+                    className={`flex w-full items-center gap-2 rounded-md px-2 py-1 text-left ${cur ? "bg-secondary text-secondary-foreground" : "hover:bg-card"}`}>
+                    <span className="w-5 text-muted-foreground">{i + 1}.</span>
+                    <span className={`flex-1 truncate ${used && !cur ? "text-muted-foreground line-through" : ""}`}>{x.prompt}</span>
+                    <span className="text-[10px] uppercase">{cur ? "live" : used ? "used" : ""}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {s.gameOver
+              ? <button className={btnGhost} onClick={() => act({ type: "resumeGame" })}>Hide winner</button>
+              : <button className={btnGold} onClick={() => act({ type: "endGame" })}>End game · show winner</button>}
+            <button className={btnDanger} onClick={onNewMatch}>New match…</button>
           </div>
         </div>
-      ) : (
-        <>
-          <div className="mb-4 rounded-xl border border-electric/40 bg-muted p-3">
-            <h3 className="mb-2 font-display text-lg text-gold">SHOW ROUNDS</h3>
-            <div className="flex flex-wrap gap-2">
-              {([["classic","Round 1 · Classic ×1"],["double","Round 2 · Double ×2"],["triple","Round 3 · Triple ×3"],["bonus","Kingson Bonus Round"]] as [RoundMode,string][]).map(([mode,label]) => <button key={mode} className={roundMode===mode?btnGold:btnGhost} onClick={()=>onRoundChange(mode)}>{label}</button>)}
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground">{roundMode==="classic"?"Normal survey points.":roundMode==="double"?"Every correct board answer earns double points.":"Every correct board answer earns triple points."}</p>
+      </div>
+
+      {roundMode === "bonus" && (
+        <div className="mt-4 rounded-xl border-2 border-gold/60 bg-muted p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-display text-xl text-gold">KINGSON BONUS ROUND · HOST ONLY</h3><b className="text-gold">BONUS TOTAL: {bonus.total} pts · {bonus.correctCount}/5 CORRECT</b></div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-gold">Question {Math.min(safeBonusIndex + 1, 5)} of 5</span>
+            <span className="text-xs text-muted-foreground">A correct answer automatically opens the next question.</span>
+            <button className={btnGhost} onClick={()=>onBonusChange({...bonus,index:0,accepted:[],total:0,responses:["","","","",""],pendingAnswers:["","","","",""],revealed:false,correctCount:0})}>Reset bonus round</button>
           </div>
-          <div className="grid gap-4 lg:grid-cols-3">
-            {/* Round */}
-            <div className="rounded-xl bg-muted p-3">
-              <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Playing team</h3>
-              <div className="grid grid-cols-2 gap-2">
-                {(["A", "B"] as Team[]).map((t) => (
-                  <button key={t} disabled={s.phase !== "play"} onClick={() => act({ type: "setActive", team: t })}
-                    className={`${btn} border-2 ${s.active === t ? "border-electric bg-secondary text-secondary-foreground" : "border-border bg-card text-foreground"}`}>
-                    {s.teamNames[t]} ({t})
-                  </button>
-                ))}
-              </div>
-              <div className="mt-3 text-sm">
-                {s.phase === "play" && <>Strikes: <b className="text-destructive">{s.strikes}/3</b> · Click tiles or press 1–6.</>}
-                {s.phase === "awarded" && <span className="text-muted-foreground">Round finished. The remaining answers are revealed automatically before the next round.</span>}
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button className={btnDanger} disabled={s.phase === "awarded"} onClick={() => act({ type: "strike" })}>✕ Strike (X)</button>
-                <button className={btnGhost} disabled={s.phase === "awarded" || (s.phase === "play" && s.strikes === 0)} onClick={() => act({ type: "undoStrike" })}>Undo strike</button>
-              </div>
-            </div>
-            {/* Bank */}
-            <div className="rounded-xl bg-muted p-3">
-              <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Round bank: <span className="text-gold text-base">{s.bank}</span></h3>
-              <div className="grid grid-cols-2 gap-2">
-                {(["A", "B"] as Team[]).map((t) => <button key={t} className={t === s.active ? btnGold : btnGhost} disabled={s.phase === "awarded"} onClick={() => act({ type: "award", team: t })}>Bank to {s.teamNames[t]}{t === s.active ? " (Space)" : ""}</button>)}
-              </div>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <button className={btnGhost} disabled={s.tiles.every((t) => t !== "hidden")} onClick={() => act({ type: "showAll" })}>Show remaining answers</button>
-                <button className={btnGhost} onClick={() => act({ type: "resetRound" })}>Reset this round</button>
-              </div>
-              <h3 className="mb-2 mt-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">Scores (manual fix)</h3>
-              {(["A", "B"] as Team[]).map((t) => <div key={t} className="mb-2 flex items-center gap-2">
-                <input aria-label={`Team ${t} name`} className="w-28 flex-1 rounded-md border border-input bg-card px-2 py-1 text-sm" value={s.teamNames[t]} onChange={(e) => act({ type: "renameTeam", team: t, name: e.target.value.toUpperCase() })} />
-                <span className="w-12 text-right font-display text-gold">{s.scores[t]}</span>
-                <button className={btnGhost} onClick={() => act({ type: "adjustScore", team: t, delta: -5 })}>−5</button>
-                <button className={btnGhost} onClick={() => act({ type: "adjustScore", team: t, delta: 5 })}>+5</button>
-              </div>)}
-            </div>
-            {/* Questions */}
-            <div className="rounded-xl bg-muted p-3">
-              <div className="mb-2 flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Questions · {unused} unused</h3><button className="text-xs font-semibold text-electric hover:underline" onClick={onEdit}>Edit current</button></div>
-              <div className="grid grid-cols-2 gap-2"><button className={btnBlue} onClick={() => act({ type: "next" })}>Next question (N)</button><button className={btnGhost} onClick={() => act({ type: "next", random: true })}>Random (R)</button></div>
-              {s.bank > 0 && s.phase !== "awarded" && <p className="mt-2 text-xs text-destructive">Bank has {s.bank} unbanked points — moving on discards them.</p>}
-              <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto pr-1 text-sm">{s.questions.map((x, i) => {const used = s.usedIds.includes(x.id);const cur = x.id === q.id;return <li key={x.id}><button disabled={cur} onClick={() => act({ type: "next", id: x.id })} className={`flex w-full items-center gap-2 rounded-md px-2 py-1 text-left ${cur ? "bg-secondary text-secondary-foreground" : "hover:bg-card"}`}><span className="w-5 text-muted-foreground">{i + 1}.</span><span className={`flex-1 truncate ${used && !cur ? "text-muted-foreground line-through" : ""}`}>{x.prompt}</span><span className="text-[10px] uppercase">{cur ? "live" : used ? "used" : ""}</span></button></li>;})}</ul>
-              <div className="mt-3 grid grid-cols-2 gap-2">{s.gameOver ? <button className={btnGhost} onClick={() => act({ type: "resumeGame" })}>Hide winner</button> : <button className={btnGold} onClick={() => act({ type: "endGame" })}>End game · show winner</button>}<button className={btnDanger} onClick={onNewMatch}>New match…</button></div>
-            </div>
+          <label className="mt-3 block text-xs font-bold uppercase text-muted-foreground">Question shown to viewers</label>
+          <input className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2" value={activeBonusQuestion.prompt} onChange={e=>{const questions=[...safeBonusQuestions];questions[safeBonusIndex]={...questions[safeBonusIndex],prompt:e.target.value};onBonusChange({...bonus,questions});}} />
+          <label className="mt-3 block text-xs font-bold uppercase text-muted-foreground">Private accepted answers · edit these before the show</label>
+          <div className="mt-1 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            {(activeBonusQuestion ?? BONUS_DEFAULTS[0]).answers.map((answer,i)=><div key={i} className="flex min-w-0 gap-1"><input aria-label={"Bonus accepted answer "+(i+1)} className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-2 text-sm" value={answer.text} onChange={e=>{const questions=[...safeBonusQuestions];const answers=[...questions[safeBonusIndex].answers];answers[i]={...answer,text:e.target.value};questions[safeBonusIndex]={...questions[safeBonusIndex],answers};onBonusChange({...bonus,questions});}} /><span className="flex w-16 items-center justify-center rounded-md border border-border bg-card px-1 py-2 text-sm font-semibold text-gold">{answer.points}</span></div>)}
           </div>
-        </>
+          <p className={"mt-2 text-xs font-semibold " + (activeBonusQuestion.answers.reduce((sum,a)=>sum+a.points,0)===200?"text-gold":"text-destructive")}>Answer points total: {activeBonusQuestion.answers.reduce((sum,a)=>sum+a.points,0)} / 200</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <input className="min-w-0 flex-1 rounded-md border border-input bg-card px-3 py-2" placeholder="Type the viewer's answer…" value={bonusGuess} disabled={Boolean(bonus.pendingAnswers?.[safeBonusIndex]) || bonus.revealed || !timer.running} onChange={e=>setBonusGuess(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();submitBonusGuess();}}} />
+            <button className={btnGold} disabled={!bonusGuess.trim() || Boolean(bonus.pendingAnswers?.[safeBonusIndex]) || bonus.revealed || !timer.running} onClick={submitBonusGuess}>Record answer</button>
+          </div>
+          <p className="mt-2 text-xs font-semibold text-muted-foreground">60-second mission timer: {timer.remaining}s · {(bonus.pendingAnswers ?? []).filter(Boolean).length} / 5 answers recorded privately</p>
+          {bonusFeedback && <p className="mt-2 text-sm font-semibold text-gold">{bonusFeedback}</p>}
+          <p className="mt-2 text-xs text-muted-foreground">Current team: {s.teamNames[s.active]}. The audience never sees this answer key. Each question's five answer values should total exactly 200 points.</p>
+        </div>
       )}
       {roundMode !== "bonus" && <AnswerKey s={s} q={q} act={act} />}
     </section>
