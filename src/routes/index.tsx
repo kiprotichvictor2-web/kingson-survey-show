@@ -458,31 +458,36 @@ function Game() {
   }, [showCountdown, stageOnly, roundMode]);
   useEffect(() => {
     if (!autoPlay || stageOnly || showCountdown || roundResult || transitionLockRef.current || roundMode === "bonus") return;
-    const allRevealed = s.tiles.length > 0 && s.tiles.every((tile) => tile !== "hidden");
-    const timeExpired = !timer.running && timer.remaining === 0;
-    if (!allRevealed && !timeExpired) return;
 
-    // After the third strike, keep the fully revealed answer board visible
-    // before showing the round-results screen and starting the next countdown.
-    if (s.strikes >= 3 && s.phase === "awarded") {
-      transitionLockRef.current = true;
-      const revealPause = window.setTimeout(() => {
-        transitionLockRef.current = false;
-        if (roundMode === "classic") finishMainRound("classic", "double", 3);
-        else if (roundMode === "double") finishMainRound("double", "triple", 3);
-        else if (roundMode === "triple") finishMainRound("triple", "bonus", 5);
-      }, 3000);
-      return () => {
-        window.clearTimeout(revealPause);
-        transitionLockRef.current = false;
-      };
+    const timeExpired = !timer.running && timer.remaining === 0;
+    // When the clock expires, bank the playing team's points first. The
+    // awarded phase then drives the same orderly reveal used after 3 strikes.
+    if (timeExpired && s.phase !== "awarded") {
+      actRef.current({ type: "award", team: s.active });
+      return;
     }
 
-    if (roundMode === "classic") finishMainRound("classic", "double", 3);
-    else if (roundMode === "double") finishMainRound("double", "triple", 3);
-    else if (roundMode === "triple") finishMainRound("triple", "bonus", 5);
-  }, [s, s.tiles, timer.running, timer.remaining, autoPlay, showCountdown, roundResult, roundMode, stageOnly]);
-  useEffect(() => {
+    const nextHidden = s.tiles.findIndex((tile) => tile === "hidden");
+    if (s.phase === "awarded" && nextHidden >= 0) {
+      const revealTimer = window.setTimeout(() => {
+        actRef.current({ type: "reveal", index: nextHidden });
+      }, 1000);
+      return () => window.clearTimeout(revealTimer);
+    }
+
+    const allRevealed = s.tiles.length > 0 && s.tiles.every((tile) => tile !== "hidden");
+    if (s.phase === "awarded" && allRevealed) {
+      if (roundMode === "classic") finishMainRound("classic", "double", 3);
+      else if (roundMode === "double") finishMainRound("double", "triple", 3);
+      else if (roundMode === "triple") finishMainRound("triple", "bonus", 5);
+      return;
+    }
+    if (allRevealed) {
+      if (roundMode === "classic") finishMainRound("classic", "double", 3);
+      else if (roundMode === "double") finishMainRound("double", "triple", 3);
+      else if (roundMode === "triple") finishMainRound("triple", "bonus", 5);
+    }
+  }, [s, s.tiles, timer.running, timer.remaining, autoPlay, showCountdown, roundResult, roundMode, stageOnly]);  useEffect(() => {
     if (stageOnly || roundMode !== "bonus" || timer.running || timer.remaining !== 0 || bonus.revealed) return;
     finishBonusMission();
   }, [stageOnly, roundMode, timer.running, timer.remaining, bonus, teamLeg]);
