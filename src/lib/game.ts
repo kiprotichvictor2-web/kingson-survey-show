@@ -104,8 +104,9 @@ export function reducer(s: GameState, a: Action): GameState {
       if (s.phase === "steal") return awardTo(s, s.controlTeam, "Steal failed");
       const strikes = Math.min(3, s.strikes + 1);
       if (strikes === 3) {
-        const revealed = { ...s, strikes, tiles: s.tiles.map(() => "shown" as TileState) };
-        return awardTo(revealed, s.active, "Three strikes");
+        // Award the round immediately, then let the host/audience UI reveal
+        // each still-hidden answer in order, one tile per second.
+        return awardTo({ ...s, strikes }, s.active, "Three strikes");
       }
       return { ...s, strikes };
     }
