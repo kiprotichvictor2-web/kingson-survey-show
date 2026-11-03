@@ -168,6 +168,7 @@ function Game() {
   const [audienceGameStarted, setAudienceGameStarted] = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(true);
   const [themePlayerActive, setThemePlayerActive] = useState(false);
+  const [gameplayMusicActive, setGameplayMusicActive] = useState(false);
   const [help, setHelp] = useState(false);
   const [editing, setEditing] = useState(false);
   const [confirmNew, setConfirmNew] = useState(false);
@@ -395,6 +396,7 @@ function Game() {
     const opponent: Team = team === "A" ? "B" : "A";
     const teams = finalMatch ? { [team]: { breakdown, total: totalScore }, [opponent]: { breakdown: roundPoints[opponent] ?? { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 }, total: s.scores[opponent] } } as Record<Team, { breakdown: TeamBreakdown; total: number }> : undefined;
     const final = { team, breakdown, total: totalScore, finalMatch, champion: finalMatch ? (totalScore > s.scores[opponent] ? team : totalScore < s.scores[opponent] ? opponent : "tie") : null, ...(teams ? { teams } : {}) };
+    if (finalMatch) setGameplayMusicActive(false);
     setFinalResults(final);
     localStorage.setItem("kingson-survey-show-final-results-v1", JSON.stringify(final));
     setAutoPlay(false);
@@ -413,6 +415,7 @@ function Game() {
   };
   const playNow = () => {
     setThemePlayerActive(false);
+    setGameplayMusicActive(true);
     setAudienceGameStarted(true);
     localStorage.setItem(GAME_STARTED_KEY, "true");
     roundStartScoresRef.current = { ...s.scores };
@@ -969,6 +972,16 @@ function Game() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
+      {!stageOnly && gameplayMusicActive && (
+        <iframe
+          title="Kingson Survey Show gameplay background music"
+          src="https://suno.com/embed/67769172-521c-46da-98fe-5c9964ef3724?autoplay=1"
+          className="pointer-events-none fixed left-0 top-0 h-px w-px opacity-0"
+          allow="autoplay; encrypted-media"
+          loading="eager"
+          aria-hidden="true"
+        />
+      )}
       {!stageOnly && (
         <div className={(welcomeOpen ? "fixed inset-0 z-[100] flex min-h-screen items-center justify-center overflow-hidden bg-[#090411] px-5 py-10 text-center" : "pointer-events-none fixed inset-0 z-[100] flex min-h-screen items-center justify-center overflow-hidden bg-[#090411] px-5 py-10 text-center opacity-0")}>
           {themePlayerActive && (
