@@ -886,6 +886,10 @@ function Game() {
       }
     }
     const nextState = reducer(s, a);
+    if (a.type === "strike" && nextState.strikes >= 3 && nextState.phase === "awarded") {
+      // Freeze the round clock while the revealed answers remain on screen.
+      updateTimer({ ...timer, running: false, endsAt: null });
+    }
     if (s.phase !== "awarded" && nextState.phase === "awarded") {
       playRoundWinFanfare();
       playAudienceApplause();
