@@ -57,7 +57,7 @@ export type Action =
   | { type: "stealFail" }
   | { type: "setActive"; team: Team }
   | { type: "award"; team: Team }
-  | { type: "next"; id?: string; random?: boolean; rand?: number }
+  | { type: "next"; id?: string; random?: boolean; rand?: number | undefined }
   | { type: "resetRound" }
   | { type: "newMatch"; rand?: number }
   | { type: "reshuffle"; rand?: number }
