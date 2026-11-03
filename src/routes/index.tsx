@@ -167,6 +167,7 @@ function Game() {
   const [stageOnly, setStageOnly] = useState(false);
   const [audienceGameStarted, setAudienceGameStarted] = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(true);
+  const [themePlayerActive, setThemePlayerActive] = useState(true);
   const [help, setHelp] = useState(false);
   const [editing, setEditing] = useState(false);
   const [confirmNew, setConfirmNew] = useState(false);
@@ -411,6 +412,7 @@ function Game() {
     localStorage.setItem("kingson-survey-show-countdown-v1", JSON.stringify(next));
   };
   const playNow = () => {
+    setThemePlayerActive(false);
     setAudienceGameStarted(true);
     localStorage.setItem(GAME_STARTED_KEY, "true");
     roundStartScoresRef.current = { ...s.scores };
@@ -780,8 +782,8 @@ function Game() {
     }
   };
 
-  // Move from the welcome screen to preparation. The hosted theme player
-  // is available on the preparation screen so the host can start it manually.
+  // Keep the same Suno player mounted behind preparation after the welcome screen closes.
+  // PLAY NOW removes the player to stop the music.
   const enterShow = () => {
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setWelcomeOpen(false);
@@ -966,8 +968,21 @@ function Game() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      {welcomeOpen && !stageOnly && (
-        <div className="fixed inset-0 z-[100] flex min-h-screen items-center justify-center overflow-hidden bg-[#090411] px-5 py-10 text-center">
+      {!stageOnly && (
+        <div className={(welcomeOpen ? "fixed inset-0 z-[100] flex min-h-screen items-center justify-center overflow-hidden bg-[#090411] px-5 py-10 text-center" : "pointer-events-none fixed inset-0 z-[100] flex min-h-screen items-center justify-center overflow-hidden bg-[#090411] px-5 py-10 text-center opacity-0")}>
+          {themePlayerActive && (
+            <div className="absolute bottom-5 left-1/2 z-20 w-[min(340px,calc(100vw-2rem))] -translate-x-1/2 rounded-xl border border-yellow-300/40 bg-black/70 p-2">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-yellow-200">The Lion's Grand Entrance</p>
+              <iframe
+                title="The Lion's Grand Entrance theme music"
+                src="https://suno.com/embed/10c14861-bbd4-45d8-a940-31e366f88733"
+                className="h-[140px] w-full rounded-lg border-0"
+                allow="autoplay; encrypted-media"
+                loading="eager"
+              />
+              <p className="mt-1 text-[10px] text-slate-400">Set a comfortable volume, then press the game's Play button.</p>
+            </div>
+          )}
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(91,33,132,0.48),transparent_58%)]" />
           <div className="pointer-events-none absolute inset-0 opacity-30" style={{ backgroundImage: "linear-gradient(rgba(234,179,8,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(192,132,252,.12) 1px, transparent 1px)", backgroundSize: "54px 54px" }} />
           <div className="relative z-10 mx-auto w-full max-w-3xl">
@@ -1002,18 +1017,7 @@ function Game() {
                 <p className="text-xs font-black uppercase tracking-[0.35em] text-purple-200">Kingson Survey Show</p>
                 <h2 className="mt-3 font-display text-3xl font-black uppercase tracking-wide text-white">Are you ready?</h2>
                 <p className="mt-3 max-w-xs text-sm text-slate-300">Press below when your teams and audience are ready to begin.</p>
-                <div className="mt-5 w-full max-w-[340px] overflow-hidden rounded-xl border border-yellow-300/40 bg-black/60 p-2">
-                  <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-yellow-200">The Lion's Grand Entrance</p>
-                  <iframe
-                    title="The Lion's Grand Entrance theme music"
-                    src="https://suno.com/embed/10c14861-bbd4-45d8-a940-31e366f88733"
-                    className="h-[140px] w-full rounded-lg border-0"
-                    allow="autoplay; encrypted-media"
-                    loading="eager"
-                  />
-                  <p className="mt-1 text-[10px] text-slate-400">Use the player's volume control to set a comfortable level.</p>
-                </div>
-                <button type="button" className={btnGold + " mt-6 min-w-56 px-8 py-5 text-xl shadow-[0_0_30px_rgba(234,179,8,.35)]"} onClick={playNow}>▶ PLAY NOW</button>
+                <button type="button" className={btnGold + " mt-8 min-w-56 px-8 py-5 text-xl shadow-[0_0_30px_rgba(234,179,8,.35)]"} onClick={playNow}>▶ PLAY NOW</button>
               </div>
             </div>
           ) : (
