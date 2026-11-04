@@ -1454,14 +1454,9 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
             </div>
             </>}
           </div>
+          <Podium s={s} team="B" />
         </div>
 
-        {s.lastAward && !s.gameOver && (
-          <div key={s.round + s.lastAward.reason} className="pop absolute bottom-[3.5cqh] left-1/2 -translate-x-1/2 rounded-full gold-frame bg-background/90 px-[3cqw] py-[1cqh] font-display" style={{ fontSize: "3cqh" }}>
-            <span className="text-muted-foreground">{s.lastAward.reason.toUpperCase()} · </span>
-            <span className="gold-text">+{s.lastAward.points} {s.teamNames[s.lastAward.team]}</span>
-          </div>
-        )}
       </div>
 
       {showCountdown?.target === "handover" && (
