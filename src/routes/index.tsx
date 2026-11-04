@@ -515,7 +515,10 @@ function Game() {
     localStorage.setItem(ROUND_KEY, mode);
     if (mode === "bonus") {
       bonusFinishLockRef.current = false;
-      const freshBonus = { ...bonus, questions: drawBonusQuestions(), index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0, pendingAnswers: ["", "", "", "", ""], revealed: false };
+      // Team A uses the five questions drawn when the host opened this match.
+      // Team B receives a new set when its own Bonus Mission begins.
+      const missionQuestions = teamLeg === 2 ? drawBonusQuestions() : bonus.questions;
+      const freshBonus = { ...bonus, questions: missionQuestions, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0, pendingAnswers: ["", "", "", "", ""], revealed: false };
       setBonus(freshBonus);
       localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus));
       setBonusGuess("");
@@ -675,7 +678,8 @@ function Game() {
           setFinalResults(null);
           localStorage.removeItem("kingson-survey-show-final-results-v1");
           setRoundPoints((previous) => ({ ...previous, [nextTeam]: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 } }));
-          const freshBonus = { ...bonus, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0, pendingAnswers: ["", "", "", "", ""], revealed: false };
+          bonusFinishLockRef.current = false;
+           const freshBonus = { ...bonus, questions: drawBonusQuestions(), index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0, pendingAnswers: ["", "", "", "", ""], revealed: false };
           setBonus(freshBonus);
           localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus));
           setAutoPlay(true);
