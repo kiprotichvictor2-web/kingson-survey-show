@@ -1649,6 +1649,7 @@ function HostPanel({ s, q, act, onStage, onHelp, onNewMatch, isFinalMatch, onPla
           <div className="mt-1 text-xs text-muted-foreground">{roundMode === "bonus" ? `Bonus question ${safeBonusIndex + 1} of 5` : "This is the question currently shown to the audience."}</div>
         </div>
       </div>
+      {roundMode !== "bonus" && <AnswerKey s={s} q={q} act={act} />}
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Round */}
         <div className="rounded-xl bg-muted p-3">
@@ -1719,7 +1720,6 @@ function HostPanel({ s, q, act, onStage, onHelp, onNewMatch, isFinalMatch, onPla
           <p className="mt-2 text-xs text-muted-foreground">Current team: {s.teamNames[s.active]}. The audience never sees this answer key. Each question's five answer values should total exactly 200 points.</p>
         </div>
       )}
-      {roundMode !== "bonus" && <AnswerKey s={s} q={q} act={act} />}
     </section>
   );
 }
