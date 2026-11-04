@@ -199,6 +199,7 @@ const BONUS_DEFAULTS: BonusQuestion[] = [
   bonusQuestion("What might you find at a hair salon reception.", ["Appointment book","Waiting chairs","Product display","Magazines","Price list"]),
 ];
 const BONUS_USED_KEY = "kingson-survey-show-bonus-used-v1";
+const BONUS_LAST_KEY = "kingson-survey-show-bonus-last-set-v1";
 const SURVEY_USED_KEY = "kingson-survey-show-survey-used-v1";
 function shuffled<T>(items: T[]): T[] {
   const copy = [...items];
@@ -206,17 +207,52 @@ function shuffled<T>(items: T[]): T[] {
   return copy;
 }
 function drawBonusQuestions(): BonusQuestion[] {
+  const uniqueQuestions = [...new Map(BONUS_DEFAULTS.map((question) => [question.prompt, question])).values()];
+  if (!uniqueQuestions.length) return [];
+
   let used: string[] = [];
-  try { used = JSON.parse(localStorage.getItem(BONUS_USED_KEY) ?? "[]") as string[]; } catch { used = []; }
-  const available = shuffled(BONUS_DEFAULTS.filter((q) => !used.includes(q.prompt)));
-  let picked = available.slice(0, 5);
-  let nextUsed = [...used, ...picked.map((q) => q.prompt)];
-  if (picked.length < 5) {
-    const refill = shuffled(BONUS_DEFAULTS.filter((q) => !picked.some((p) => p.prompt === q.prompt)));
-    picked = [...picked, ...refill.slice(0, 5 - picked.length)];
-    nextUsed = picked.map((q) => q.prompt);
+  let previous: string[] = [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(BONUS_USED_KEY) ?? "[]");
+    if (Array.isArray(parsed)) used = parsed.filter((prompt): prompt is string => typeof prompt === "string");
+  } catch { used = []; }
+  try {
+    const parsed = JSON.parse(localStorage.getItem(BONUS_LAST_KEY) ?? "[]");
+    if (Array.isArray(parsed)) previous = parsed.filter((prompt): prompt is string => typeof prompt === "string");
+  } catch { previous = []; }
+
+  const validPrompts = new Set(uniqueQuestions.map((question) => question.prompt));
+  used = used.filter((prompt) => validPrompts.has(prompt));
+  previous = previous.filter((prompt) => validPrompts.has(prompt));
+
+  // Shuffle the full bank and use every prompt once before beginning a new cycle.
+  let picked = shuffled(uniqueQuestions.filter((question) => !used.includes(question.prompt)))
+    .slice(0, Math.min(5, uniqueQuestions.length));
+  let nextUsed = [...used, ...picked.map((question) => question.prompt)];
+
+  // If fewer than five remain in this cycle, complete the set from a fresh shuffle.
+  if (picked.length < Math.min(5, uniqueQuestions.length)) {
+    const refill = shuffled(uniqueQuestions.filter((question) => !picked.some((item) => item.prompt === question.prompt)));
+    picked = [...picked, ...refill.slice(0, Math.min(5, uniqueQuestions.length) - picked.length)];
+    nextUsed = picked.map((question) => question.prompt);
   }
+
+  // Avoid showing the exact same five-question set in consecutive games.
+  const previousSet = [...previous].sort().join("|");
+  const pickedSet = picked.map((question) => question.prompt).sort().join("|");
+  if (picked.length > 1 && pickedSet === previousSet) {
+    const alternatives = shuffled(uniqueQuestions.filter((question) => !picked.some((item) => item.prompt === question.prompt)));
+    if (alternatives.length) {
+      const replaced = picked[picked.length - 1];
+      picked[picked.length - 1] = alternatives[0];
+      // Keep the replacement marked as used so it cannot reappear in this cycle.
+      if (!nextUsed.includes(alternatives[0].prompt)) nextUsed.push(alternatives[0].prompt);
+      if (!used.includes(replaced.prompt) && !nextUsed.includes(replaced.prompt)) nextUsed.push(replaced.prompt);
+    }
+  }
+
   localStorage.setItem(BONUS_USED_KEY, JSON.stringify(nextUsed));
+  localStorage.setItem(BONUS_LAST_KEY, JSON.stringify(picked.map((question) => question.prompt)));
   return picked;
 }
 function normalizeBonusQuestions(value: unknown): BonusQuestion[] {
