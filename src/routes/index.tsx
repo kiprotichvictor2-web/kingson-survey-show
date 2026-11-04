@@ -1523,15 +1523,6 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
             <div className="mx-auto flex items-center justify-center"><LionCrest className="h-12 w-12 sm:h-16 sm:w-16" /></div>
             <div className="ks-final-kicker font-display font-bold tracking-[.16em] text-purple-100" style={{fontSize:"clamp(.9rem,2.2vw,1.35rem)"}}>✦ KINGSON SURVEY SHOW ✦</div>
             <div className="ks-final-heading font-display font-black tracking-wide text-white drop-shadow-lg" style={{fontSize:"clamp(1.8rem,5vw,3.5rem)",lineHeight:1.05}}>{finalResults.finalMatch && finalResults.revealCombined ? "FINAL SCOREBOARD" : (s.teamNames[finalResults.team] + " · TEAM RESULTS")}</div>
-            {bonus.revealed && (
-              <div className="mx-auto grid w-full max-w-4xl grid-cols-2 gap-2 rounded-xl border-2 border-yellow-300/70 bg-black/85 p-3 text-center sm:grid-cols-5">
-                {bonus.questions.map((question,index)=><div key={index} className="min-w-0 rounded-lg border border-white/15 bg-white/10 px-2 py-2">
-                  <div className="font-display font-bold text-yellow-200" style={{fontSize:"clamp(.85rem,1.8vw,1.1rem)"}}>QUESTION {index+1}</div>
-                  <div className="mt-1 break-words font-semibold text-white" style={{fontSize:"clamp(.85rem,1.7vw,1.05rem)"}}>{bonus.questions[index].answers.find(answer=>answer.text===bonus.responses[index])?.text ?? "No answer"}</div>
-                  <div className="mt-1 font-display font-black text-yellow-200" style={{fontSize:"clamp(1rem,2vw,1.3rem)"}}>{question.answers.find(answer=>answer.text===bonus.responses[index])?.points ?? 0} PTS</div>
-                </div>)}
-              </div>
-            )}
             {finalResults.finalMatch && finalResults.revealCombined && finalResults.teams ? (
               <div className="mx-auto w-full max-w-4xl overflow-hidden rounded-2xl border-4 border-yellow-300 bg-black/95 text-center shadow-2xl">
                 <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] items-stretch border-b-2 border-yellow-300/70 bg-purple-950/90">
