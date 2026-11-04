@@ -1232,16 +1232,16 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                     key={`${q.id}-${i}-${t}`}
                     onClick={() => onReveal(i)}
                     disabled={t !== "hidden"}
-                    className={`ks-tile flex min-h-0 items-center rounded-xl px-[3.2cqw] py-[1cqh] text-left ${t === "hidden" ? "tile-closed cursor-pointer hover:brightness-125" : t === "scored" ? "tile-open" : "tile-shown"}`}
+                    className={`ks-tile flex min-h-0 items-center rounded-xl px-[1.2cqw] py-[1cqh] text-left ${t === "hidden" ? "tile-closed cursor-pointer hover:brightness-125" : t === "scored" ? "tile-open" : "tile-shown"}`}
                     aria-label={t === "hidden" ? `Reveal answer ${i + 1}` : `${ans.text} ${ans.points}`}
                   >
                     {t === "hidden" ? (
                       <span className="mx-auto flex aspect-square h-[70%] items-center justify-center rounded-full bg-background/70 font-mono font-semibold tabular-nums text-gold" style={{ fontSize: "6cqh", border: "2px solid var(--gold)" }}>{i + 1}</span>
                     ) : (
                       <>
-                        <span className="mr-[2cqw] flex h-[5.5cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-mono font-semibold tabular-nums text-gold" style={{ fontSize: "3.8cqh" }}>{i + 1}</span>
+                        <span className="mr-[1cqw] flex h-[5.2cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-mono font-semibold tabular-nums text-gold" style={{ fontSize: "3.5cqh" }}>{i + 1}</span>
                         <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap font-sans font-medium tracking-normal uppercase text-white" style={{ fontSize: `${Math.max(0.95, Math.min(4.1, 105 / Math.max(1, ans.text.length)))}cqh`, lineHeight: 1, textOverflow: "clip" }}>{ans.text}</span>
-                        <span className={`ml-[2cqw] flex h-[6.2cqh] min-w-[6.2cqh] shrink-0 items-center justify-center rounded-lg px-[1cqw] font-display font-black ${t === "scored" ? "bg-primary-foreground text-primary" : "bg-slate-950/70 text-gold"}`} style={{ fontSize: "4cqh" }}>{ans.points}</span>
+                        <span className={`ml-[1cqw] flex h-[5.8cqh] min-w-[5.8cqh] shrink-0 items-center justify-center rounded-lg px-[0.5cqw] font-display font-black ${t === "scored" ? "bg-primary-foreground text-primary" : "bg-slate-950/70 text-gold"}`} style={{ fontSize: "3.7cqh" }}>{ans.points}</span>
                       </>
                     )}
                   </button>
