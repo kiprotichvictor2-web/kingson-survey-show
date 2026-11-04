@@ -1233,6 +1233,7 @@ function Game() {
             onStage={() => window.open(`${window.location.pathname}?stage=1`, "_blank", "noopener,noreferrer")}
             onHelp={() => setHelp(true)}
             onNewMatch={() => setConfirmNew(true)}
+            isFinalMatch={Boolean(finalResults?.finalMatch && finalResults?.revealCombined)}
             onPlayNow={playNow}
             roundMode={roundMode}
             onRoundChange={changeRound}
@@ -1611,8 +1612,8 @@ function Podium({ s, team }: { s: GameState; team: Team }) {
 
 /* ---------------- HOST ---------------- */
 
-function HostPanel({ s, q, act, onStage, onHelp, onNewMatch, onPlayNow, roundMode, onRoundChange, bonus, onBonusChange, bonusGuess, setBonusGuess, bonusFeedback, submitBonusGuess, timer }: {
-  s: GameState; q: Question; act: (a: Action) => void; onStage: () => void; onHelp: () => void; onNewMatch: () => void; onPlayNow: () => void;
+function HostPanel({ s, q, act, onStage, onHelp, onNewMatch, isFinalMatch, onPlayNow, roundMode, onRoundChange, bonus, onBonusChange, bonusGuess, setBonusGuess, bonusFeedback, submitBonusGuess, timer }: {
+  s: GameState; q: Question; act: (a: Action) => void; onStage: () => void; onHelp: () => void; onNewMatch: () => void; isFinalMatch: boolean; onPlayNow: () => void;
   roundMode: RoundMode; onRoundChange: (mode: RoundMode) => void; timer: TimerState; bonus: BonusState; onBonusChange: (next: BonusState) => void; bonusGuess: string; setBonusGuess: (value: string) => void; bonusFeedback: string; submitBonusGuess: () => void;
 }) {
   const safeBonusQuestions = normalizeBonusQuestions(bonus.questions);
@@ -1680,7 +1681,7 @@ function HostPanel({ s, q, act, onStage, onHelp, onNewMatch, onPlayNow, roundMod
             {s.gameOver
               ? <button className={btnGhost} onClick={() => act({ type: "resumeGame" })}>Hide winner</button>
               : <button className={btnGold} onClick={() => act({ type: "endGame" })}>End game · show winner</button>}
-            <button className={btnDanger} onClick={onNewMatch}>New match…</button>
+            <button className={isFinalMatch ? btnGold : btnDanger} onClick={onNewMatch}>{isFinalMatch ? "▶ NEXT GAME" : "New match…"}</button>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">Questions are selected and shuffled automatically for every new match.</p>
         </div>
