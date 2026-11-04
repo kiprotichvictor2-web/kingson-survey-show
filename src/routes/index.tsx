@@ -547,8 +547,7 @@ function Game() {
   };
   const finishBonusMission = (answersOverride?: string[]) => {
     if (bonus.revealed || bonusFinishLockRef.current) return;
-    bonusFinishLockRef.current = true;
-    const pendingAnswers = answersOverride ?? bonus.pendingAnswers ?? ["", "", "", "", ""];
+    bonusFinishLockRef.current = true;    const pendingAnswers = answersOverride ?? bonus.pendingAnswers ?? ["", "", "", "", ""];
     // Stop and persist the clock immediately, whether the team finishes early or runs out of time.
     const stoppedTimer = { ...timer, running: false, endsAt: null };
     setTimer(stoppedTimer);
@@ -1097,8 +1096,7 @@ function Game() {
   // Play countdown sounds only in the host tab, avoiding duplicate audio on the stage tab.
   const previousTimerRef = useRef({ remaining: timer.remaining, running: timer.running });
   useEffect(() => {
-    const previous = previousTimerRef.current;
-    if (!stageOnly) {
+    const previous = previousTimerRef.current;    if (!stageOnly) {
       if (timer.running && timer.remaining > 0 && timer.remaining <= 5 && timer.remaining !== previous.remaining) {
         playCountdownTick(timer.remaining);
       }
@@ -1647,8 +1645,7 @@ function HostPanel({ s, q, act, onStage, onHelp, onNewMatch, isFinalMatch, onPla
           <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Current question · Host view</div>
           <div className="mt-1 font-semibold leading-relaxed text-foreground">{roundMode === "bonus" ? activeBonusQuestion.prompt : q.prompt}</div>
           <div className="mt-1 text-xs text-muted-foreground">{roundMode === "bonus" ? `Bonus question ${safeBonusIndex + 1} of 5` : "This is the question currently shown to the audience."}</div>
-        </div>
-      </div>
+        </div>      </div>
       {roundMode === "bonus" && (
         <div className="mb-4 rounded-xl border-2 border-gold/60 bg-muted p-3">
           <div className="mb-2 font-display text-sm font-bold uppercase tracking-wide text-gold">Bonus answer entry · Host only</div>
@@ -1658,6 +1655,24 @@ function HostPanel({ s, q, act, onStage, onHelp, onNewMatch, isFinalMatch, onPla
           </div>
           <p className="mt-2 text-xs font-semibold text-muted-foreground">60-second mission timer: {timer.remaining}s · {(bonus.pendingAnswers ?? []).filter(Boolean).length} / 5 answers recorded privately</p>
           {bonusFeedback && <p className="mt-2 text-sm font-semibold text-gold">{bonusFeedback}</p>}
+        </div>
+      )}
+{roundMode === "bonus" && (
+        <div className="mt-4 rounded-xl border-2 border-gold/60 bg-muted p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-display text-xl text-gold">KINGSON BONUS ROUND · HOST ONLY</h3><b className="text-gold">BONUS TOTAL: {bonus.total} pts · {bonus.correctCount}/5 CORRECT</b></div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-gold">Question {Math.min(safeBonusIndex + 1, 5)} of 5</span>
+            <span className="text-xs text-muted-foreground">A correct answer automatically opens the next question.</span>
+            <button className={btnGhost} onClick={()=>onBonusChange({...bonus,index:0,accepted:[],total:0,responses:["","","","",""],pendingAnswers:["","","","",""],revealed:false,correctCount:0})}>Reset bonus round</button>
+          </div>
+          <label className="mt-3 block text-xs font-bold uppercase text-muted-foreground">Question shown to viewers</label>
+          <input className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2" value={activeBonusQuestion.prompt} onChange={e=>{const questions=[...safeBonusQuestions];questions[safeBonusIndex]={...questions[safeBonusIndex],prompt:e.target.value};onBonusChange({...bonus,questions});}} />
+          <label className="mt-3 block text-xs font-bold uppercase text-muted-foreground">Private accepted answers · edit these before the show</label>
+          <div className="mt-1 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            {(activeBonusQuestion ?? BONUS_DEFAULTS[0]).answers.map((answer,i)=><div key={i} className="flex min-w-0 gap-1"><input aria-label={"Bonus accepted answer "+(i+1)} className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-2 text-sm" value={answer.text} onChange={e=>{const questions=[...safeBonusQuestions];const answers=[...questions[safeBonusIndex].answers];answers[i]={...answer,text:e.target.value};questions[safeBonusIndex]={...questions[safeBonusIndex],answers};onBonusChange({...bonus,questions});}} /><span className="flex w-16 items-center justify-center rounded-md border border-border bg-card px-1 py-2 text-sm font-semibold text-gold">{answer.points}</span></div>)}
+          </div>
+          <p className={"mt-2 text-xs font-semibold " + (activeBonusQuestion.answers.reduce((sum,a)=>sum+a.points,0)===200?"text-gold":"text-destructive")}>Answer points total: {activeBonusQuestion.answers.reduce((sum,a)=>sum+a.points,0)} / 200</p>
+          <p className="mt-2 text-xs text-muted-foreground">Current team: {s.teamNames[s.active]}. The audience never sees this answer key. Each question's five answer values should total exactly 200 points.</p>
         </div>
       )}
       {roundMode !== "bonus" && <AnswerKey s={s} q={q} act={act} />}
@@ -1707,24 +1722,7 @@ function HostPanel({ s, q, act, onStage, onHelp, onNewMatch, isFinalMatch, onPla
         </div>
       </div>
 
-      {roundMode === "bonus" && (
-        <div className="mt-4 rounded-xl border-2 border-gold/60 bg-muted p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-display text-xl text-gold">KINGSON BONUS ROUND · HOST ONLY</h3><b className="text-gold">BONUS TOTAL: {bonus.total} pts · {bonus.correctCount}/5 CORRECT</b></div>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-gold">Question {Math.min(safeBonusIndex + 1, 5)} of 5</span>
-            <span className="text-xs text-muted-foreground">A correct answer automatically opens the next question.</span>
-            <button className={btnGhost} onClick={()=>onBonusChange({...bonus,index:0,accepted:[],total:0,responses:["","","","",""],pendingAnswers:["","","","",""],revealed:false,correctCount:0})}>Reset bonus round</button>
-          </div>
-          <label className="mt-3 block text-xs font-bold uppercase text-muted-foreground">Question shown to viewers</label>
-          <input className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2" value={activeBonusQuestion.prompt} onChange={e=>{const questions=[...safeBonusQuestions];questions[safeBonusIndex]={...questions[safeBonusIndex],prompt:e.target.value};onBonusChange({...bonus,questions});}} />
-          <label className="mt-3 block text-xs font-bold uppercase text-muted-foreground">Private accepted answers · edit these before the show</label>
-          <div className="mt-1 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            {(activeBonusQuestion ?? BONUS_DEFAULTS[0]).answers.map((answer,i)=><div key={i} className="flex min-w-0 gap-1"><input aria-label={"Bonus accepted answer "+(i+1)} className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-2 text-sm" value={answer.text} onChange={e=>{const questions=[...safeBonusQuestions];const answers=[...questions[safeBonusIndex].answers];answers[i]={...answer,text:e.target.value};questions[safeBonusIndex]={...questions[safeBonusIndex],answers};onBonusChange({...bonus,questions});}} /><span className="flex w-16 items-center justify-center rounded-md border border-border bg-card px-1 py-2 text-sm font-semibold text-gold">{answer.points}</span></div>)}
-          </div>
-          <p className={"mt-2 text-xs font-semibold " + (activeBonusQuestion.answers.reduce((sum,a)=>sum+a.points,0)===200?"text-gold":"text-destructive")}>Answer points total: {activeBonusQuestion.answers.reduce((sum,a)=>sum+a.points,0)} / 200</p>
-          <p className="mt-2 text-xs text-muted-foreground">Current team: {s.teamNames[s.active]}. The audience never sees this answer key. Each question's five answer values should total exactly 200 points.</p>
-        </div>
-      )}
+      
     </section>
   );
 }
@@ -2023,4 +2021,3 @@ function EditDialog({ q, onClose, onSave }: { q: Question; onClose: () => void; 
     </Modal>
   );
 }
-
