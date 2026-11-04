@@ -1389,20 +1389,20 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
               <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border-2 border-gold/60 bg-background/55 p-[1.5cqw] text-center">
                 <div className="font-display text-gold" style={{fontSize:"3.5cqh"}}>BONUS QUESTION {bonus.index + 1} / 5</div>
                 <div className="mt-[1cqh] font-display text-electric" style={{fontSize:"2.5cqh"}}>UP TO 200 POINTS AVAILABLE</div>
-                <div className="mt-[1.2cqh] grid w-full flex-1 min-h-0 grid-cols-1 grid-rows-5 gap-[.7cqh]">
+                <div className="mt-[1.2cqh] grid w-full flex-1 min-h-0 grid-cols-1 grid-rows-5 gap-[.9cqh]">
                   {Array.from({ length: 5 }, (_, i) => {
                     const submitted = bonus.pendingAnswers?.[i]?.trim() ?? "";
                     const matched = submitted ? safeBonusQuestions[i].answers.find(a => bonusAnswerMatches(submitted, a.text)) : undefined;
                     const expected = [...safeBonusQuestions[i].answers].sort((a, b) => b.points - a.points)[0];
                     const showExpected = bonus.revealed && submitted && (!matched || (expected && matched.text !== expected.text));
                     const points = bonus.revealed && matched ? matched.points : 0;
-                    return <div key={i} className="flex min-h-0 items-center gap-[2cqw] rounded-xl border-2 border-gold/50 bg-slate-950/75 px-[2cqw] py-[.45cqh]">
-                      <span className="flex h-[6.2cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-mono font-semibold tabular-nums text-gold" style={{fontSize:"3.2cqh"}}>{i + 1}</span>
+                    return <div key={i} className="flex min-h-0 items-center gap-[2.2cqw] rounded-xl border-2 border-gold/60 bg-slate-950/90 px-[2.5cqw] py-[.7cqh] shadow-lg">
+                      <span className="flex h-[7cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/20 font-sans font-bold tabular-nums text-yellow-200" style={{fontSize:"clamp(16px,3.6cqh,30px)"}}>{i + 1}</span>
                       <div className="min-w-0 flex-1 text-left">
-                        <div className="break-words font-sans font-medium tracking-wide text-white" style={{fontSize:"2.8cqh",lineHeight:1.08}}>{submitted || "WAITING FOR ANSWER"}</div>
-                        {showExpected && expected && <div className="mt-[.25cqh] break-words font-sans font-semibold tracking-wide text-emerald-300" style={{fontSize:"2.45cqh",lineHeight:1.05}}>CORRECT ANSWER: {expected.text}</div>}
+                        <div className="break-words font-sans font-semibold tracking-normal text-white" style={{fontSize:"clamp(17px,3.35cqh,30px)",lineHeight:1.12}}>{submitted || "WAITING FOR ANSWER"}</div>
+                        {showExpected && expected && <div className="mt-[.35cqh] break-words font-sans font-semibold tracking-normal text-emerald-300" style={{fontSize:"clamp(14px,2.7cqh,24px)",lineHeight:1.12}}>CORRECT ANSWER: {expected.text}</div>}
                       </div>
-                      <span className="shrink-0 rounded-lg bg-amber-400/15 px-[2cqw] py-[.5cqh] font-display font-black text-gold" style={{fontSize:"3.2cqh"}}>{bonus.revealed && matched ? "+" + points : "—"}</span>
+                      <span className="shrink-0 rounded-xl border border-amber-300/40 bg-amber-400/15 px-[2.5cqw] py-[.8cqh] font-sans font-black tabular-nums text-yellow-200" style={{fontSize:"clamp(19px,3.8cqh,34px)"}}>{bonus.revealed && matched ? "+" + points : "—"}</span>
                     </div>;
                   })}
                 </div>
@@ -1472,46 +1472,46 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
       {showBonusResults && bonus.revealed && (
         <div className="ks-final-show absolute inset-0 z-[70] overflow-hidden px-[2.5cqw] py-[1.5cqh] text-center">
           <div className="ks-final-rays pointer-events-none absolute inset-0" />
-          <div className="relative z-10 mx-auto flex h-full w-full max-w-4xl flex-col items-stretch gap-[.8cqh]">
-            <div className="flex shrink-0 items-center justify-center gap-[2cqw]">
-              <LionCrest className="h-[5.5cqh] w-[5.5cqh]" />
+          <div className="relative z-10 mx-auto flex h-full w-full max-w-4xl flex-col items-stretch gap-[1cqh]">
+            <div className="flex shrink-0 items-center justify-center gap-[2.2cqw]">
+              <LionCrest className="h-[6cqh] w-[6cqh]" />
               <div className="min-w-0 text-left">
-                <div className="font-sans text-[1.5cqh] font-normal tracking-[.16em] text-purple-100">KINGSON SURVEY SHOW</div>
-                <div className="font-sans text-[3.2cqh] font-semibold leading-tight tracking-wide text-white">BONUS MISSION RESULTS</div>
-                <div className="font-sans text-[2cqh] font-medium text-yellow-200">{s.teamNames[finalResults?.team ?? s.active]}</div>
+                <div className="font-sans font-semibold tracking-[.12em] text-purple-100" style={{fontSize:"clamp(12px,1.9cqh,18px)"}}>KINGSON SURVEY SHOW</div>
+                <div className="font-sans font-bold leading-tight tracking-wide text-white" style={{fontSize:"clamp(20px,3.8cqh,34px)"}}>BONUS MISSION RESULTS</div>
+                <div className="font-sans font-semibold text-yellow-200" style={{fontSize:"clamp(15px,2.5cqh,23px)"}}>{s.teamNames[finalResults?.team ?? s.active]}</div>
               </div>
             </div>
-            <div className="grid min-h-0 flex-1 grid-rows-5 gap-[.65cqh]">
+            <div className="grid min-h-0 flex-1 grid-rows-5 gap-[.9cqh]">
               {safeBonusQuestions.map((question,index) => {
                 const submitted = bonus.pendingAnswers?.[index]?.trim() ?? "";
                 const matched = submitted ? question.answers.find(answer => bonusAnswerMatches(submitted, answer.text)) : undefined;
                 const topAnswer = [...question.answers].sort((a,b) => b.points-a.points)[0];
                 const surveyAnswer = matched?.text ?? topAnswer?.text ?? "No survey answer";
                 return (
-                  <div key={index} className="grid min-h-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[1.5cqw] rounded-xl border border-white/20 bg-slate-950/90 px-[2cqw] py-[.45cqh] text-left shadow-lg">
-                    <div className="flex h-[5.5cqh] aspect-square items-center justify-center rounded-full bg-white/10 font-sans text-[2.2cqh] font-medium text-yellow-200">{index+1}</div>
+                  <div key={index} className="grid min-h-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[1.8cqw] rounded-xl border-2 border-white/25 bg-slate-950/95 px-[2.5cqw] py-[.65cqh] text-left shadow-lg">
+                    <div className="flex h-[6.5cqh] aspect-square items-center justify-center rounded-full border border-yellow-200/40 bg-white/10 font-sans font-bold tabular-nums text-yellow-200" style={{fontSize:"clamp(15px,2.8cqh,25px)"}}>{index+1}</div>
                     <div className="min-w-0">
-                      <div className="truncate font-sans text-[1.65cqh] font-medium leading-tight text-purple-200">{question.prompt}</div>
-                      <div className="break-words font-sans text-[2.05cqh] font-medium leading-tight text-white">{submitted || "No answer submitted"}</div>
-                      <div className="break-words font-sans text-[1.65cqh] font-normal leading-tight text-emerald-300">{matched ? "SURVEY ANSWER: " : "TOP SURVEY ANSWER: "}{surveyAnswer}</div>
+                      <div className="break-words font-sans font-semibold leading-snug text-purple-200" style={{fontSize:"clamp(12px,2.1cqh,19px)"}}>{question.prompt}</div>
+                      <div className="break-words font-sans font-bold leading-snug text-white" style={{fontSize:"clamp(16px,2.9cqh,26px)"}}>{submitted || "No answer submitted"}</div>
+                      <div className="break-words font-sans font-medium leading-snug text-emerald-300" style={{fontSize:"clamp(13px,2.25cqh,20px)"}}>{matched ? "SURVEY ANSWER: " : "TOP SURVEY ANSWER: "}{surveyAnswer}</div>
                     </div>
-                    <div className="min-w-[4cqw] text-right">
-                      <div className={`font-sans text-[2.7cqh] font-semibold tabular-nums ${matched ? "text-yellow-200" : "text-white/60"}`}>{matched ? "+"+matched.points : "0"}</div>
-                      <div className="font-sans text-[1.25cqh] font-normal tracking-wide text-white/60">POINTS</div>
-                      <div className={`font-sans text-[1.35cqh] font-medium ${matched ? "text-emerald-300" : "text-rose-300"}`}>{matched ? "CORRECT" : submitted ? "NOT MATCHED" : "UNANSWERED"}</div>
+                    <div className="min-w-[5cqw] text-right">
+                      <div className={`font-sans font-bold tabular-nums ${matched ? "text-yellow-200" : "text-white/70"}`} style={{fontSize:"clamp(20px,3.6cqh,32px)"}}>{matched ? "+"+matched.points : "0"}</div>
+                      <div className="font-sans font-semibold tracking-wide text-white/75" style={{fontSize:"clamp(11px,1.7cqh,15px)"}}>POINTS</div>
+                      <div className={`font-sans font-semibold ${matched ? "text-emerald-300" : "text-rose-300"}`} style={{fontSize:"clamp(11px,1.8cqh,16px)"}}>{matched ? "CORRECT" : submitted ? "NOT MATCHED" : "UNANSWERED"}</div>
                     </div>
                   </div>
                 );
               })}
             </div>
             <div className="grid shrink-0 grid-cols-2 gap-[1.5cqw]">
-              <div className="rounded-xl border border-white/20 bg-black/55 px-2 py-[.8cqh]">
-                <div className="font-sans text-[1.5cqh] font-normal tracking-wide text-white/70">CORRECT ANSWERS</div>
-                <div className="font-sans text-[3cqh] font-semibold leading-tight text-emerald-300">{bonus.correctCount} / 5</div>
+              <div className="rounded-xl border border-white/25 bg-black/65 px-2 py-[.9cqh]">
+                <div className="font-sans font-semibold tracking-wide text-white/80" style={{fontSize:"clamp(12px,1.9cqh,17px)"}}>CORRECT ANSWERS</div>
+                <div className="font-sans font-bold leading-tight text-emerald-300" style={{fontSize:"clamp(21px,3.6cqh,32px)"}}>{bonus.correctCount} / 5</div>
               </div>
-              <div className="rounded-xl border border-yellow-300/50 bg-yellow-300/10 px-2 py-[.8cqh]">
-                <div className="font-sans text-[1.5cqh] font-normal tracking-wide text-yellow-100/80">MISSION POINTS</div>
-                <div className="font-sans text-[3cqh] font-semibold leading-tight text-yellow-200">{bonus.total.toLocaleString()}</div>
+              <div className="rounded-xl border border-yellow-300/60 bg-yellow-300/10 px-2 py-[.9cqh]">
+                <div className="font-sans font-semibold tracking-wide text-yellow-100/90" style={{fontSize:"clamp(12px,1.9cqh,17px)"}}>MISSION POINTS</div>
+                <div className="font-sans font-bold leading-tight text-yellow-200" style={{fontSize:"clamp(21px,3.6cqh,32px)"}}>{bonus.total.toLocaleString()}</div>
               </div>
             </div>
             {bonus.correctCount >= 3 && (
