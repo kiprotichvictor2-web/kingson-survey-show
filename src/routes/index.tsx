@@ -1240,7 +1240,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                     ) : (
                       <>
                         <span className="mr-[1cqw] flex h-[5.2cqh] aspect-square shrink-0 items-center justify-center rounded-full bg-amber-400/15 font-mono font-semibold tabular-nums text-gold" style={{ fontSize: "3.5cqh" }}>{i + 1}</span>
-                        <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap font-sans font-medium tracking-normal uppercase text-white" style={{ fontSize: `${Math.max(0.75, Math.min(3.6, 75 / Math.max(1, ans.text.length)))}cqh`, lineHeight: 1, textOverflow: "clip" }}>{ans.text}</span>
+                        <FittedAnswerText text={ans.text} />
                         <span className={`ml-[1cqw] flex h-[5.8cqh] min-w-[5.8cqh] shrink-0 items-center justify-center rounded-lg px-[0.5cqw] font-display font-black ${t === "scored" ? "bg-primary-foreground text-primary" : "bg-slate-950/70 text-gold"}`} style={{ fontSize: "3.7cqh" }}>{ans.points}</span>
                       </>
                     )}
@@ -1461,6 +1461,52 @@ function HostPanel({ s, q, act, onStage, onHelp, onNewMatch, onPlayNow, roundMod
       )}
       {roundMode !== "bonus" && <AnswerKey s={s} q={q} act={act} />}
     </section>
+  );
+}
+
+/* Fit audience answer text to the actual width available on each board tile. */
+function FittedAnswerText({ text }: { text: string }) {
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [fontPx, setFontPx] = useState<number | null>(null);
+
+  useEffect(() => {
+    const element = textRef.current;
+    if (!element) return;
+
+    let frame = 0;
+    const fit = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const node = textRef.current;
+        if (!node) return;
+        const available = node.clientWidth;
+        const natural = node.scrollWidth;
+        const current = Number.parseFloat(getComputedStyle(node).fontSize);
+        if (!available || !natural || !current) return;
+        if (natural > available + 1) {
+          const next = Math.max(10, current * (available / natural) * 0.96);
+          setFontPx((previous) => previous === null || next < previous - 0.5 ? next : previous);
+        }
+      });
+    };
+
+    const observer = new ResizeObserver(fit);
+    observer.observe(element);
+    fit();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [text]);
+
+  return (
+    <span
+      ref={textRef}
+      className="min-w-0 flex-1 overflow-hidden whitespace-nowrap font-sans font-medium tracking-normal uppercase text-white"
+      style={{ fontSize: fontPx ? `${fontPx}px` : `${Math.max(1.1, Math.min(3.6, 90 / Math.max(1, text.length)))}cqh`, lineHeight: 1, textOverflow: "clip" }}
+    >
+      {text}
+    </span>
   );
 }
 
