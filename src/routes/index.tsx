@@ -1142,7 +1142,17 @@ function LionCrest({ className = "" }: { className?: string }) {
 
 function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode, bonus, roundResult, finalResults, showCountdown }: { audienceWaiting: boolean; s: GameState; q: Question; strikeFlash: number; timer: TimerState; onReveal: (i: number) => void; roundMode: RoundMode; bonus: BonusState; roundResult: RoundResult | null; finalResults: FinalResults | null; showCountdown: { remaining: number; target: CountdownTarget } | null }) {
   const [flash, setFlash] = useState(false);
+  const [showBonusResults, setShowBonusResults] = useState(false);
   const safeBonusQuestions = normalizeBonusQuestions(bonus.questions);
+  useEffect(() => {
+    if (!bonus.revealed) {
+      setShowBonusResults(false);
+      return;
+    }
+    setShowBonusResults(true);
+    const timeout = window.setTimeout(() => setShowBonusResults(false), 10000);
+    return () => window.clearTimeout(timeout);
+  }, [bonus.revealed, bonus.questions]);
   const activeBonusQuestion = safeBonusQuestions[Math.min(4, Math.max(0, bonus.index))] ?? BONUS_DEFAULTS[0];
   useEffect(() => {
     if (!strikeFlash) return;
@@ -1313,6 +1323,56 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
             <div className="mt-5 font-display uppercase tracking-[.16em] text-purple-200" style={{fontSize:"clamp(1rem,3cqh,1.6rem)"}}>{s.teamNames[s.active === "A" ? "B" : "A"]}</div>
             <div className="mt-7 font-display font-black leading-none text-gold drop-shadow-[0_0_35px_rgba(245,190,82,.7)]" style={{fontSize:"clamp(5rem,24cqh,11rem)"}}>{showCountdown.remaining}</div>
             <div className="mt-4 font-display uppercase tracking-[.22em] text-white" style={{fontSize:"clamp(.8rem,2.8cqh,1.3rem)"}}>SECONDS TO TAKE THE STAGE</div>
+          </div>
+        </div>
+      )}
+      {showBonusResults && bonus.revealed && (
+        <div className="ks-final-show absolute inset-0 z-[70] overflow-y-auto px-3 py-4 text-center sm:px-6 sm:py-6">
+          <div className="ks-final-rays pointer-events-none absolute inset-0" />
+          <div className="relative z-10 mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center gap-3">
+            <LionCrest className="h-12 w-12 sm:h-16 sm:w-16" />
+            <div className="font-sans text-sm font-normal tracking-[.18em] text-purple-100 sm:text-base">KINGSON SURVEY SHOW</div>
+            <div className="font-sans text-2xl font-semibold tracking-wide text-white sm:text-4xl">BONUS MISSION RESULTS</div>
+            <div className="font-sans text-base font-medium text-yellow-200 sm:text-xl">{s.teamNames[finalResults?.team ?? s.active]}</div>
+            <div className="grid w-full gap-2">
+              {safeBonusQuestions.map((question,index) => {
+                const submitted = bonus.pendingAnswers?.[index]?.trim() ?? "";
+                const matched = submitted ? question.answers.find(answer => answerMatches(submitted, answer.text)) : undefined;
+                const topAnswer = [...question.answers].sort((a,b) => b.points-a.points)[0];
+                return (
+                  <div key={index} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-white/20 bg-slate-950/90 px-3 py-3 text-left shadow-lg sm:px-5">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 font-sans text-base font-medium text-yellow-200 sm:h-11 sm:w-11">{index+1}</div>
+                    <div className="min-w-0">
+                      <div className="font-sans text-xs font-medium tracking-wide text-purple-200 sm:text-sm">QUESTION {index+1}</div>
+                      <div className="mt-1 break-words font-sans text-sm font-normal leading-snug text-white sm:text-lg">{submitted || "No answer submitted"}</div>
+                      {!matched && <div className="mt-1 break-words font-sans text-xs font-normal leading-snug text-emerald-300 sm:text-sm">TOP SURVEY ANSWER: {topAnswer.text}</div>}
+                      <div className={`mt-1 font-sans text-xs font-medium ${matched ? "text-emerald-300" : "text-rose-300"}`}>{matched ? "CORRECT ANSWER" : submitted ? "NOT MATCHED" : "UNANSWERED"}</div>
+                    </div>
+                    <div className="min-w-[4.5rem] text-right">
+                      <div className={`font-sans text-xl font-semibold tabular-nums sm:text-2xl ${matched ? "text-yellow-200" : "text-white/60"}`}>{matched ? "+"+matched.points : "0"}</div>
+                      <div className="font-sans text-[10px] font-normal tracking-wide text-white/60 sm:text-xs">POINTS</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="grid w-full grid-cols-2 gap-2 sm:gap-4">
+              <div className="rounded-xl border border-white/20 bg-black/55 px-3 py-3">
+                <div className="font-sans text-xs font-normal tracking-wide text-white/70 sm:text-sm">CORRECT ANSWERS</div>
+                <div className="mt-1 font-sans text-2xl font-semibold text-emerald-300 sm:text-3xl">{bonus.correctCount} / 5</div>
+              </div>
+              <div className="rounded-xl border border-yellow-300/50 bg-yellow-300/10 px-3 py-3">
+                <div className="font-sans text-xs font-normal tracking-wide text-yellow-100/80 sm:text-sm">MISSION POINTS</div>
+                <div className="mt-1 font-sans text-2xl font-semibold text-yellow-200 sm:text-3xl">{bonus.total.toLocaleString()}</div>
+              </div>
+            </div>
+            {bonus.correctCount >= 3 && (
+              <div className="w-full rounded-xl border-2 border-yellow-300 bg-gradient-to-r from-yellow-500/20 via-amber-300/20 to-yellow-500/20 px-4 py-3 shadow-[0_0_30px_rgba(250,204,21,.22)]">
+                <div className="font-sans text-sm font-medium tracking-wide text-yellow-100 sm:text-base">BONUS REWARD UNLOCKED</div>
+                <div className="mt-1 font-sans text-3xl font-semibold text-yellow-200 sm:text-4xl">+500 POINTS</div>
+              </div>
+            )}
+            <div className="font-sans text-xs font-normal text-white/65 sm:text-sm">FINAL TEAM SCORE WILL APPEAR NEXT</div>
           </div>
         </div>
       )}
