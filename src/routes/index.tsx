@@ -1396,29 +1396,52 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                 </div>)}
               </div>
             )}
-            <div className={"mx-auto grid w-full max-w-4xl grid-cols-1 gap-3 sm:gap-4 "+(finalResults.finalMatch && finalResults.teams ? "sm:grid-cols-2" : "max-w-2xl")}>
-              {(finalResults.finalMatch && finalResults.revealCombined && finalResults.teams
-                ? ([finalResults.champion === "tie" ? finalResults.team : finalResults.champion as Team, (finalResults.champion === "tie" ? (finalResults.team === "A" ? "B" : "A") : finalResults.champion === "A" ? "B" : "A")] as Team[]).map(team=>({team,...finalResults.teams![team]}))
-                : [{team:finalResults.team,breakdown:finalResults.breakdown,total:finalResults.total}]
-              ).map((entry,rank)=>(
-                <div key={entry.team} className={"min-w-0 rounded-2xl border-4 p-4 text-left shadow-2xl sm:p-5 "+(rank===0?"border-yellow-300 bg-gradient-to-br from-yellow-300/25 via-yellow-950/95 to-black":"border-purple-300 bg-gradient-to-br from-purple-700/90 via-purple-950/95 to-black")}>
-                  <div className="mb-2 text-center font-display font-black tracking-wider text-yellow-200" style={{fontSize:"clamp(1rem,2.5vw,1.5rem)"}}>{finalResults.finalMatch && finalResults.revealCombined ? (finalResults.champion === "tie" ? "🤝 TIED" : rank===0?"🏆 WINNER · 1ST PLACE":"2ND PLACE · RUNNER-UP") : "TEAM RESULTS"}</div>
-                  <div className="break-words text-center font-display font-black leading-tight text-white" style={{fontSize:"clamp(1.5rem,4vw,2.5rem)"}}>{s.teamNames[entry.team]}</div>
+            {finalResults.finalMatch && finalResults.revealCombined && finalResults.teams ? (
+              <div className="mx-auto w-full max-w-4xl overflow-hidden rounded-2xl border-4 border-yellow-300 bg-black/95 text-center shadow-2xl">
+                <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] items-stretch border-b-2 border-yellow-300/70 bg-purple-950/90">
+                  <div className="flex items-center px-3 py-3 text-left font-display font-bold text-purple-100" style={{fontSize:"clamp(.8rem,1.8vw,1.05rem)"}}>SCORING ROUND</div>
+                  {(["A","B"] as Team[]).map((team)=>(
+                    <div key={team} className="flex flex-col items-center justify-center border-l border-white/20 px-2 py-3">
+                      <div className="font-display font-black text-white" style={{fontSize:"clamp(.9rem,2vw,1.2rem)"}}>{s.teamNames[team]}</div>
+                      <div className="mt-1 font-display font-bold text-yellow-200" style={{fontSize:"clamp(.65rem,1.3vw,.85rem)"}}>{finalResults.champion === "tie" ? "TIED" : finalResults.champion === team ? "🏆 WINNER" : "RUNNER-UP"}</div>
+                    </div>
+                  ))}
+                </div>
+                {([[ "CLASSIC ROUND", "classic" ],[ "DOUBLE POINT ROUND", "double" ],[ "TRIPLE POINT ROUND", "triple" ],[ "BONUS MISSION", "bonus" ],[ "BONUS REWARD", "bonusExtra" ]] as [string,keyof TeamBreakdown][]).map(([label,key],index)=>(
+                  <div key={key} className={"grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] items-center "+(index%2===0?"bg-white/[0.07]":"bg-transparent")}>
+                    <div className="px-3 py-3 text-left font-display font-semibold text-white" style={{fontSize:"clamp(.78rem,1.8vw,1.08rem)"}}>{label}</div>
+                    {(["A","B"] as Team[]).map(team=>(
+                      <div key={team} className="border-l border-white/15 px-2 py-3 font-display font-bold tabular-nums text-yellow-100" style={{fontSize:"clamp(1rem,2.2vw,1.4rem)"}}>{finalResults.teams![team].breakdown[key].toLocaleString()}</div>
+                    ))}
+                  </div>
+                ))}
+                <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] items-center border-t-4 border-yellow-300 bg-gradient-to-r from-yellow-950 via-yellow-900/70 to-yellow-950">
+                  <div className="px-3 py-4 text-left font-display font-black tracking-wide text-white" style={{fontSize:"clamp(.9rem,2vw,1.25rem)"}}>GRAND TOTAL</div>
+                  {(["A","B"] as Team[]).map(team=>(
+                    <div key={team} className="border-l border-yellow-200/30 px-2 py-4 font-display font-black tabular-nums text-yellow-200" style={{fontSize:"clamp(1.45rem,3.5vw,2.5rem)"}}>{finalResults.teams![team].total.toLocaleString()}</div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-3 sm:gap-4">
+                <div className="min-w-0 rounded-2xl border-4 border-purple-300 bg-gradient-to-br from-purple-700/90 via-purple-950/95 to-black p-4 text-left shadow-2xl sm:p-5">
+                  <div className="mb-2 text-center font-display font-black tracking-wider text-yellow-200" style={{fontSize:"clamp(1rem,2.5vw,1.5rem)"}}>TEAM RESULTS</div>
+                  <div className="break-words text-center font-display font-black leading-tight text-white" style={{fontSize:"clamp(1.5rem,4vw,2.5rem)"}}>{s.teamNames[finalResults.team]}</div>
                   <div className="my-3 space-y-1.5">
-                    {([[ "CLASSIC",entry.breakdown.classic ],[ "DOUBLE ×2",entry.breakdown.double ],[ "TRIPLE ×3",entry.breakdown.triple ],[ "BONUS MISSION",entry.breakdown.bonus ],[ "500-POINT REWARD",entry.breakdown.bonusExtra ]] as [string,number][]).map(([label,points])=>(
+                    {([[ "CLASSIC",finalResults.breakdown.classic ],[ "DOUBLE ×2",finalResults.breakdown.double ],[ "TRIPLE ×3",finalResults.breakdown.triple ],[ "BONUS MISSION",finalResults.breakdown.bonus ],[ "500-POINT REWARD",finalResults.breakdown.bonusExtra ]] as [string,number][]).map(([label,points])=>(
                       <div key={label} className="flex items-center justify-between gap-3 border-b border-white/25 py-2">
-                        <div className="font-display font-bold text-white" style={{fontSize:"clamp(.95rem,2vw,1.2rem)"}}>{label}</div>
-                        <div className="shrink-0 font-display font-black text-yellow-200 tabular-nums" style={{fontSize:"clamp(1.1rem,2.5vw,1.55rem)"}}>{points.toLocaleString()} <span className="text-yellow-100" style={{fontSize:"clamp(.75rem,1.4vw,.95rem)"}}>PTS</span></div>
+                        <div className="font-display font-semibold text-white" style={{fontSize:"clamp(.95rem,2vw,1.2rem)"}}>{label}</div>
+                        <div className="shrink-0 font-display font-bold text-yellow-200 tabular-nums" style={{fontSize:"clamp(1.1rem,2.5vw,1.55rem)"}}>{points.toLocaleString()} <span className="text-yellow-100" style={{fontSize:"clamp(.75rem,1.4vw,.95rem)"}}>PTS</span></div>
                       </div>
                     ))}
                   </div>
                   <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border-2 border-yellow-300 bg-black px-3 py-3 sm:px-4">
                     <div className="font-display font-black tracking-wider text-white" style={{fontSize:"clamp(1.1rem,2.4vw,1.5rem)"}}>TOTAL SCORE</div>
-                    <div className="font-display font-black leading-none text-yellow-200 tabular-nums drop-shadow-[0_0_12px_rgba(253,224,71,.45)]" style={{fontSize:"clamp(2rem,5vw,3.5rem)"}}>{entry.total.toLocaleString()}</div>
+                    <div className="font-display font-black leading-none text-yellow-200 tabular-nums" style={{fontSize:"clamp(2rem,5vw,3.5rem)"}}>{finalResults.total.toLocaleString()}</div>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
             {finalResults.finalMatch && finalResults.revealCombined ? <div className="ks-final-champion mt-1 rounded-xl border-2 border-yellow-300 bg-black/90 px-4 py-3 font-display font-black text-yellow-200 shadow-xl sm:px-8" style={{fontSize:"clamp(1.35rem,3.5vw,2.7rem)"}}>{finalResults.champion === "tie" ? "🏆 IT'S A TIE! 🏆" : "🏆 CHAMPION: " + s.teamNames[finalResults.champion as Team] + " 🏆"}</div> : finalResults.finalMatch ? <div className="rounded-xl border-2 border-purple-200 bg-purple-950 px-5 py-2 font-display font-bold text-white" style={{fontSize:"clamp(1rem,2.2vw,1.4rem)"}}>FINAL SCORES COMING UP…</div> : <div className="inline-flex items-center gap-2 rounded-full border-2 border-purple-200 bg-purple-950 px-5 py-2 font-display font-bold text-white" style={{fontSize:"clamp(1rem,2.2vw,1.4rem)"}}>TEAM B PREPARES IN <span className="font-black text-yellow-300">{showCountdown?.target === "handover" ? showCountdown.remaining : 30}</span> SECONDS</div>}
           </div>
         </div>
