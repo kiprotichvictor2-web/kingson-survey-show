@@ -1649,6 +1649,17 @@ function HostPanel({ s, q, act, onStage, onHelp, onNewMatch, isFinalMatch, onPla
           <div className="mt-1 text-xs text-muted-foreground">{roundMode === "bonus" ? `Bonus question ${safeBonusIndex + 1} of 5` : "This is the question currently shown to the audience."}</div>
         </div>
       </div>
+      {roundMode === "bonus" && (
+        <div className="mb-4 rounded-xl border-2 border-gold/60 bg-muted p-3">
+          <div className="mb-2 font-display text-sm font-bold uppercase tracking-wide text-gold">Bonus answer entry · Host only</div>
+          <div className="flex flex-wrap gap-2">
+            <input className="min-w-0 flex-1 rounded-md border border-input bg-card px-3 py-2" placeholder="Type the viewer's answer…" value={bonusGuess} disabled={Boolean(bonus.pendingAnswers?.[safeBonusIndex]) || bonus.revealed || !timer.running} onChange={e=>setBonusGuess(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();submitBonusGuess();}}} />
+            <button className={btnGold} disabled={!bonusGuess.trim() || Boolean(bonus.pendingAnswers?.[safeBonusIndex]) || bonus.revealed || !timer.running} onClick={submitBonusGuess}>Record answer</button>
+          </div>
+          <p className="mt-2 text-xs font-semibold text-muted-foreground">60-second mission timer: {timer.remaining}s · {(bonus.pendingAnswers ?? []).filter(Boolean).length} / 5 answers recorded privately</p>
+          {bonusFeedback && <p className="mt-2 text-sm font-semibold text-gold">{bonusFeedback}</p>}
+        </div>
+      )}
       {roundMode !== "bonus" && <AnswerKey s={s} q={q} act={act} />}
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Round */}
@@ -1711,12 +1722,6 @@ function HostPanel({ s, q, act, onStage, onHelp, onNewMatch, isFinalMatch, onPla
             {(activeBonusQuestion ?? BONUS_DEFAULTS[0]).answers.map((answer,i)=><div key={i} className="flex min-w-0 gap-1"><input aria-label={"Bonus accepted answer "+(i+1)} className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-2 text-sm" value={answer.text} onChange={e=>{const questions=[...safeBonusQuestions];const answers=[...questions[safeBonusIndex].answers];answers[i]={...answer,text:e.target.value};questions[safeBonusIndex]={...questions[safeBonusIndex],answers};onBonusChange({...bonus,questions});}} /><span className="flex w-16 items-center justify-center rounded-md border border-border bg-card px-1 py-2 text-sm font-semibold text-gold">{answer.points}</span></div>)}
           </div>
           <p className={"mt-2 text-xs font-semibold " + (activeBonusQuestion.answers.reduce((sum,a)=>sum+a.points,0)===200?"text-gold":"text-destructive")}>Answer points total: {activeBonusQuestion.answers.reduce((sum,a)=>sum+a.points,0)} / 200</p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <input className="min-w-0 flex-1 rounded-md border border-input bg-card px-3 py-2" placeholder="Type the viewer's answer…" value={bonusGuess} disabled={Boolean(bonus.pendingAnswers?.[safeBonusIndex]) || bonus.revealed || !timer.running} onChange={e=>setBonusGuess(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();submitBonusGuess();}}} />
-            <button className={btnGold} disabled={!bonusGuess.trim() || Boolean(bonus.pendingAnswers?.[safeBonusIndex]) || bonus.revealed || !timer.running} onClick={submitBonusGuess}>Record answer</button>
-          </div>
-          <p className="mt-2 text-xs font-semibold text-muted-foreground">60-second mission timer: {timer.remaining}s · {(bonus.pendingAnswers ?? []).filter(Boolean).length} / 5 answers recorded privately</p>
-          {bonusFeedback && <p className="mt-2 text-sm font-semibold text-gold">{bonusFeedback}</p>}
           <p className="mt-2 text-xs text-muted-foreground">Current team: {s.teamNames[s.active]}. The audience never sees this answer key. Each question's five answer values should total exactly 200 points.</p>
         </div>
       )}
