@@ -135,19 +135,56 @@ function normalizeBonusQuestions(value: unknown): BonusQuestion[] {
     return { prompt: candidate.prompt, answers };
   });
 }
+const SURVEY_LAST_KEY = "kingson-survey-show-survey-last-set-v1";
 function drawSurveyIds(questions: Question[]): string[] {
+  const uniqueQuestions = [...new Map(questions.map((question) => [question.id, question])).values()];
+  if (!uniqueQuestions.length) return [];
+
   let used: string[] = [];
-  try { used = JSON.parse(localStorage.getItem(SURVEY_USED_KEY) ?? "[]") as string[]; } catch { used = []; }
-  const available = shuffled(questions.filter((q) => !used.includes(q.id)));
-  let picked = available.slice(0, 6);
-  let nextUsed = [...used, ...picked.map((q) => q.id)];
-  if (picked.length < 6) {
-    const refill = shuffled(questions.filter((q) => !picked.some((p) => p.id === q.id)));
-    picked = [...picked, ...refill.slice(0, 6 - picked.length)];
-    nextUsed = picked.map((q) => q.id);
+  let previous: string[] = [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SURVEY_USED_KEY) ?? "[]");
+    if (Array.isArray(parsed)) used = parsed.filter((id): id is string => typeof id === "string");
+  } catch { used = []; }
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SURVEY_LAST_KEY) ?? "[]");
+    if (Array.isArray(parsed)) previous = parsed.filter((id): id is string => typeof id === "string");
+  } catch { previous = []; }
+
+  const validIds = new Set(uniqueQuestions.map((question) => question.id));
+  used = used.filter((id) => validIds.has(id));
+  previous = previous.filter((id) => validIds.has(id));
+
+  // Draw six distinct questions, using every question once before starting a new cycle.
+  let available = shuffled(uniqueQuestions.filter((question) => !used.includes(question.id)));
+  let picked = available.slice(0, Math.min(6, uniqueQuestions.length));
+  let nextUsed = [...used, ...picked.map((question) => question.id)];
+
+  if (picked.length < Math.min(6, uniqueQuestions.length)) {
+    const refill = shuffled(uniqueQuestions.filter((question) => !picked.some((item) => item.id === question.id)));
+    picked = [...picked, ...refill.slice(0, Math.min(6, uniqueQuestions.length) - picked.length)];
+    nextUsed = picked.map((question) => question.id);
   }
+
+  // Never repeat the exact same six-question match on consecutive host openings.
+  const previousSet = [...previous].sort().join("|");
+  const pickedSet = picked.map((question) => question.id).sort().join("|");
+  if (picked.length > 1 && pickedSet === previousSet) {
+    const alternatives = shuffled(uniqueQuestions.filter((question) => !picked.some((item) => item.id === question.id)));
+    if (alternatives.length) {
+      picked[picked.length - 1] = alternatives[0];
+      if (nextUsed.includes(alternatives[0].id)) {
+        nextUsed = [...new Set([...nextUsed, alternatives[0].id])];
+      } else {
+        nextUsed.push(alternatives[0].id);
+      }
+    }
+  }
+
+  const ids = picked.map((question) => question.id);
   localStorage.setItem(SURVEY_USED_KEY, JSON.stringify(nextUsed));
-  return picked.map((q) => q.id);
+  localStorage.setItem(SURVEY_LAST_KEY, JSON.stringify(ids));
+  return ids;
 }
 type BonusState = { questions: BonusQuestion[]; index: number; accepted: string[]; total: number; responses: string[]; correctCount: number; pendingAnswers?: string[]; revealed?: boolean };
 const BONUS_STORAGE_KEY = "kingson-survey-show-bonus-v1";
