@@ -1454,7 +1454,6 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
             </div>
             </>}
           </div>
-          <Podium s={s} team="B" />
         </div>
 
         {s.lastAward && !s.gameOver && (
