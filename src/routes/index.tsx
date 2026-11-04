@@ -1466,7 +1466,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
       </div>
 
       {showCountdown?.target === "handover" && (
-        <div className="ks-final-show absolute inset-0 z-[60] flex flex-col items-center justify-center overflow-hidden px-5 py-4 text-center">
+        <div className="ks-final-show absolute inset-0 z-[80] flex flex-col items-center justify-center overflow-hidden px-5 py-4 text-center">
           <div className="ks-final-rays pointer-events-none absolute inset-0" />
           <div className="relative z-10 flex w-full max-w-3xl flex-col items-center">
             <div className="mx-auto mb-5 flex items-center justify-center"><LionCrest className="h-[15cqh] w-[15cqh]" /></div>
