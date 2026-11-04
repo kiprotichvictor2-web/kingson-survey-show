@@ -362,6 +362,7 @@ function Game() {
   });
   const roundStartScoresRef = useRef<Record<Team, number>>({ A: 0, B: 0 });
   const transitionLockRef = useRef(false);
+  const bonusFinishLockRef = useRef(false);
 
   useEffect(() => {
     const isStage = new URLSearchParams(window.location.search).get("stage") === "1";
@@ -513,6 +514,7 @@ function Game() {
     setRoundMode(mode);
     localStorage.setItem(ROUND_KEY, mode);
     if (mode === "bonus") {
+      bonusFinishLockRef.current = false;
       const freshBonus = { ...bonus, questions: drawBonusQuestions(), index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0, pendingAnswers: ["", "", "", "", ""], revealed: false };
       setBonus(freshBonus);
       localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus));
@@ -536,10 +538,18 @@ function Game() {
     updateBonus({ ...bonus, pendingAnswers, index: nextIndex < 0 ? 4 : nextIndex });
     setBonusFeedback("Answer recorded privately. The answer and points will be revealed when time is up.");
     setBonusGuess("");
+    if (pendingAnswers.every((answer) => answer.trim().length > 0)) {
+      finishBonusMission(pendingAnswers);
+    }
   };
-  const finishBonusMission = () => {
-    if (bonus.revealed) return;
-    const pendingAnswers = bonus.pendingAnswers ?? ["", "", "", "", ""];
+  const finishBonusMission = (answersOverride?: string[]) => {
+    if (bonus.revealed || bonusFinishLockRef.current) return;
+    bonusFinishLockRef.current = true;
+    const pendingAnswers = answersOverride ?? bonus.pendingAnswers ?? ["", "", "", "", ""];
+    // Stop and persist the clock immediately, whether the team finishes early or runs out of time.
+    const stoppedTimer = { ...timer, running: false, endsAt: null };
+    setTimer(stoppedTimer);
+    localStorage.setItem(TIMER_KEY, JSON.stringify(stoppedTimer));
     let correctCount = 0;
     let total = 0;
     const responses = bonus.questions.map((question, index) => {
