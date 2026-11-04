@@ -545,7 +545,7 @@ function Game() {
     const responses = bonus.questions.map((question, index) => {
       const guess = pendingAnswers[index]?.trim();
       if (!guess) return "No answer";
-      const match = question.answers.find((answer) => answerMatches(guess, answer.text));
+      const match = question.answers.find((answer) => bonusAnswerMatches(guess, answer.text));
       if (!match) return "No answer";
       correctCount += 1; total += match.points; return match.text;
     });
@@ -554,7 +554,7 @@ function Game() {
     const pointsEarned = total + extraBonus;
     const accepted = bonus.questions.flatMap((question, index) => {
       const guess = pendingAnswers[index]?.trim();
-      const match = guess ? question.answers.find((answer) => answerMatches(guess, answer.text)) : undefined;
+      const match = guess ? question.answers.find((answer) => bonusAnswerMatches(guess, answer.text)) : undefined;
       return match ? [index + ":" + normText(match.text)] : [];
     });
     updateBonus({ ...bonus, index: 4, pendingAnswers, responses, accepted, total, correctCount, revealed: true });
@@ -1380,7 +1380,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
                 <div className="mt-[1.2cqh] grid w-full flex-1 min-h-0 grid-cols-1 grid-rows-5 gap-[.7cqh]">
                   {Array.from({ length: 5 }, (_, i) => {
                     const submitted = bonus.pendingAnswers?.[i]?.trim() ?? "";
-                    const matched = submitted ? safeBonusQuestions[i].answers.find(a => answerMatches(submitted, a.text)) : undefined;
+                    const matched = submitted ? safeBonusQuestions[i].answers.find(a => bonusAnswerMatches(submitted, a.text)) : undefined;
                     const expected = [...safeBonusQuestions[i].answers].sort((a, b) => b.points - a.points)[0];
                     const showExpected = bonus.revealed && submitted && (!matched || (expected && matched.text !== expected.text));
                     const points = bonus.revealed && matched ? matched.points : 0;
@@ -1478,7 +1478,7 @@ function Stage({ audienceWaiting, s, q, strikeFlash, timer, onReveal, roundMode,
             <div className="grid min-h-0 flex-1 grid-rows-5 gap-[.65cqh]">
               {safeBonusQuestions.map((question,index) => {
                 const submitted = bonus.pendingAnswers?.[index]?.trim() ?? "";
-                const matched = submitted ? question.answers.find(answer => answerMatches(submitted, answer.text)) : undefined;
+                const matched = submitted ? question.answers.find(answer => bonusAnswerMatches(submitted, answer.text)) : undefined;
                 const topAnswer = [...question.answers].sort((a,b) => b.points-a.points)[0];
                 const surveyAnswer = matched?.text ?? topAnswer?.text ?? "No survey answer";
                 return (
@@ -1765,6 +1765,13 @@ function FittedAnswerText({ text }: { text: string }) {
 /* ---------------- HOST ANSWER KEY (private) ---------------- */
 
 const normText = (t: string) => t.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+// Bonus Mission scoring is deliberately conservative: punctuation, spacing and
+// capitalization do not matter, but partial words and fuzzy subsequences never score.
+function bonusAnswerMatches(query: string, answer: string): boolean {
+  const q = normText(query);
+  const a = normText(answer);
+  return q.length > 0 && q === a;
+}
 const isSubseq = (needle: string, hay: string) => {
   let i = 0;
   for (const c of hay) if (c === needle[i]) i++;
