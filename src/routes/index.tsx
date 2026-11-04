@@ -679,7 +679,7 @@ function Game() {
           localStorage.removeItem("kingson-survey-show-final-results-v1");
           setRoundPoints((previous) => ({ ...previous, [nextTeam]: { classic: 0, double: 0, triple: 0, bonus: 0, bonusExtra: 0 } }));
           bonusFinishLockRef.current = false;
-           const freshBonus = { ...bonus, questions: drawBonusQuestions(), index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0, pendingAnswers: ["", "", "", "", ""], revealed: false };
+           const freshBonus = { ...bonus, index: 0, accepted: [], total: 0, responses: ["", "", "", "", ""], correctCount: 0, pendingAnswers: ["", "", "", "", ""], revealed: false };
           setBonus(freshBonus);
           localStorage.setItem(BONUS_STORAGE_KEY, JSON.stringify(freshBonus));
           setAutoPlay(true);
